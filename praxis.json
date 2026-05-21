@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "version": "1.0",
+    "lastUpdated": "2025-01-01T00:00:00Z"
+  },
+  "colors": [
+    "#005A92",
+    "#D4AF37",
+    "#6E7A68",
+    "#3B596A",
+    "#A66E4E"
+  ],
+  "praxis": [
+    { "id": "r01", "type": "routine", "label": "Échauffement",          "color": "#6E7A68", "active": true,  "days": [1,2,3,4,5] },
+    { "id": "r02", "type": "routine", "label": "Exercice 1",            "color": "#3B596A", "active": true,  "days": [1,2,3,4,5] },
+    { "id": "r03", "type": "routine", "label": "Exercice 2",            "color": "#A66E4E", "active": false, "days": [1,2,3,4,5] },
+    { "id": "r04", "type": "routine", "label": "Faire le lit",          "color": "#005A92", "active": true,  "days": [1,2,3,4,5,6,7] },
+    { "id": "r05", "type": "routine", "label": "Lire 10 pages",         "color": "#D4AF37", "active": true,  "days": [1,2,3,4,5] },
+    { "id": "r06", "type": "routine", "label": "Pieds au sol à 5h30",   "color": "#6E7A68", "active": true,  "days": [1,2,3,4,5] },
+    { "id": "r07", "type": "routine", "label": "Lexis",                 "color": "#3B596A", "active": false, "days": [1,2,3,4,5,6,7] },
+    { "id": "r08", "type": "routine", "label": "Sonora",                "color": "#A66E4E", "active": false, "days": [1,2,3,4,5] },
+    { "id": "r09", "type": "routine", "label": "Boxe",                  "color": "#005A92", "active": false, "days": [1,2] },
+    { "id": "r10", "type": "routine", "label": "Scroller moins",        "color": "#D4AF37", "active": false, "days": [1,2,3,4,5] },
+    { "id": "r11", "type": "routine", "label": "Méditer",               "color": "#6E7A68", "active": true,  "days": [1,2,3,4,5] },
+
+    { "id": "t01", "type": "tache",   "label": "Série TV",              "color": "#3B596A", "active": false },
+    { "id": "t02", "type": "tache",   "label": "Film",                  "color": "#A66E4E", "active": false },
+    { "id": "t03", "type": "tache",   "label": "Ranger",                "color": "#005A92", "active": true  },
+    { "id": "t04", "type": "tache",   "label": "Nettoyer",              "color": "#D4AF37", "active": false },
+    { "id": "t05", "type": "tache",   "label": "Épilation",             "color": "#6E7A68", "active": false },
+    { "id": "t06", "type": "tache",   "label": "Courses",               "color": "#3B596A", "active": true  },
+    { "id": "t07", "type": "tache",   "label": "Laver le sol",          "color": "#A66E4E", "active": false },
+    { "id": "t08", "type": "tache",   "label": "Faire la poussière",    "color": "#005A92", "active": false },
+    { "id": "t09", "type": "tache",   "label": "Lessive",               "color": "#D4AF37", "active": true  },
+    { "id": "t10", "type": "tache",   "label": "Ranger le linge",       "color": "#6E7A68", "active": false },
+
+    { "id": "l01", "type": "long",    "label": "Nœud",                  "color": "#3B596A", "active": true,  "progress": 2 },
+    { "id": "l02", "type": "long",    "label": "Magie",                 "color": "#A66E4E", "active": true,  "progress": 1 },
+    { "id": "l03", "type": "long",    "label": "Lire un livre",         "color": "#005A92", "active": false, "progress": 0 }
+  ]
+}

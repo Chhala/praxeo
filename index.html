@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="screen-orientation" content="portrait">
+<title>Praxeo</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- SPLASH SCREEN -->
+  <div id="splash" class="splash">
+    <svg class="orn orn-tl" viewBox="0 0 1280 1280" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g transform="translate(0,1280) scale(0.1,-0.1)" fill="#5a5248" stroke="none">
+        <path d="M6085 12794 c-794 -47 -1358 -164 -1990 -411 -946 -372 -1784 -951 -2455 -1700 -1259 -1402 -1843 -3330 -1574 -5201 132 -920 463 -1792 977 -2574 733 -1116 1789 -1976 3022 -2463 558 -220 1145 -360 1775 -422 241 -24 833 -24 1076 0 999 98 1855 365 2682 836 506 287 859 559 1298 996 348 346 571 610 807 954 509 742 848 1575 1016 2501 63 349 75 527 75 1085 0 557 -16 788 -79 1130 -373 2019 -1617 3687 -3435 4604 -749 379 -1418 569 -2275 647 -159 14 -779 27 -920 18z"/>
+      </g>
+    </svg>
+    <div class="splash-content">
+      <span class="splash-logo">Praxeo</span>
+      <svg viewBox="0 0 180 8" xmlns="http://www.w3.org/2000/svg" width="160" height="8" style="opacity:0.15; display:block; margin:0 auto;">
+        <path d="M0,4 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v4" stroke="#5a5248" stroke-width="1" fill="none"/>
+      </svg>
+      <span class="splash-sub">Construis tes habitudes</span>
+      <div class="splash-loader"><div class="splash-loader-bar"></div></div>
+    </div>
+  </div>
+
+  <!-- APP SHELL -->
+  <div id="app" class="app hidden">
+
+    <!-- HEADER -->
+    <header class="header">
+      <span class="logo">Praxeo</span>
+      <button class="menu-btn" id="menuBtn" title="Menu">
+        <span class="menu-dot"></span>
+        <span class="menu-dot"></span>
+        <span class="menu-dot"></span>
+      </button>
+    </header>
+
+    <!-- MÉANDRE + SOUS-TITRE -->
+    <div class="header-sub-wrap">
+      <svg class="meander-sep" viewBox="0 0 280 8" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+        <path d="M0,4 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v4" stroke="#5a5248" stroke-width="1" fill="none"/>
+      </svg>
+      <span class="page-subtitle" id="pageSubtitle"></span>
+    </div>
+
+    <!-- PAGES -->
+    <main class="pages">
+      <div id="page-accueil" class="page hidden"></div>
+      <div id="page-praxis"  class="page hidden"></div>
+      <div id="page-stats"   class="page hidden"></div>
+    </main>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+      <button class="nav-btn" data-page="accueil" title="Accueil">
+        <svg viewBox="0 0 717 620" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+          <g transform="translate(0,620) scale(0.1,-0.1)">
+            <path d="M3555 6183 c-17 -7 -820 -386 -1785 -842 l-1755 -829 -3 -141 -3 -141 3576 0 3576 0 -3 141 -3 141 -355 167 c-195 93 -958 453 -1695 801 -737 348 -1381 652 -1430 675 -85 39 -93 41 -120 28z"/>
+            <path d="M748 4103 l-48 -4 0 -225 0 -224 2885 0 2885 0 0 230 0 230 -2837 -2 c-1561 -1 -2859 -3 -2885 -5z"/>
+            <path d="M960 3518 c0 -15 -23 -937 -45 -1813 -8 -324 -19 -786 -25 -1025 -5 -239 -12 -488 -14 -552 l-3 -118 425 0 424 0 -6 157 c-4 87 -22 707 -41 1378 -50 1768 -56 1969 -62 1975 -2 3 -151 6 -329 8 -261 2 -324 0 -324 -10z"/>
+            <path d="M2486 3438 c-3 -51 -8 -203 -11 -338 -3 -135 -21 -868 -40 -1630 -19 -762 -35 -1402 -35 -1422 l0 -38 420 0 420 0 0 108 c0 59 -11 487 -25 952 -13 465 -33 1180 -45 1590 -11 410 -23 773 -26 808 l-6 62 -323 0 -323 0 -6 -92z"/>
+            <path d="M4006 3273 c-20 -782 -66 -2654 -72 -2935 l-7 -328 423 0 422 0 -6 197 c-4 109 -24 830 -46 1603 -22 773 -42 1476 -46 1563 l-6 157 -328 0 -327 0 -7 -257z"/>
+            <path d="M5536 3358 c-4 -95 -22 -807 -41 -1583 -19 -776 -37 -1490 -41 -1587 l-6 -178 421 0 421 0 0 133 c0 72 -11 524 -25 1002 -13 479 -34 1205 -45 1615 -12 410 -23 751 -25 758 -3 9 -78 12 -329 12 l-324 0 -6 -172z"/>
+          </g>
+        </svg>
+      </button>
+
+      <button class="nav-btn" data-page="praxis" title="Praxis">
+        <svg class="nav-icon-portrait" viewBox="0 0 514 692" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-label="Praxis">
+          <g transform="translate(0,692) scale(0.1,-0.1)">
+            <path d="M2270 6895 c-468 -57 -917 -244 -1285 -535 -189 -150 -399 -379 -542 -592 -84 -126 -213 -382 -268 -532 -50 -136 -100 -337 -127 -507 -29 -189 -31 -513 -5 -694 110 -748 496 -1368 1107 -1780 675 -454 1538 -559 2299 -279 347 128 710 366 963 633 186 196 331 406 448 646 267 549 328 1155 175 1750 -46 179 -91 300 -185 490 -380 775 -1125 1299 -1989 1400 -151 18 -444 18 -591 0z m520 -846 c695 -81 1296 -633 1440 -1322 83 -398 32 -782 -151 -1137 -240 -464 -671 -787 -1190 -892 -97 -19 -145 -23 -319 -23 -233 0 -348 18 -539 82 -712 238 -1193 935 -1158 1678 4 72 11 159 17 195 127 777 769 1369 1548 1429 114 9 216 6 352 -10z"/>
+            <path d="M713 975 c-181 -51 -320 -201 -354 -380 -41 -219 91 -457 296 -534 96 -36 174 -43 262 -25 161 33 275 120 346 262 l42 85 0 121 c0 104 -3 129 -23 179 -51 126 -163 234 -289 279 -76 27 -210 33 -280 13z"/>
+            <path d="M2451 974 c-172 -46 -316 -195 -352 -365 -16 -73 -6 -201 21 -272 50 -132 170 -244 308 -288 189 -59 405 10 524 168 60 80 89 158 95 258 10 144 -30 254 -128 359 -122 130 -303 185 -468 140z"/>
+            <path d="M4193 976 c-160 -39 -291 -162 -345 -324 -26 -78 -24 -214 3 -294 57 -169 190 -285 372 -322 262 -54 521 135 560 409 21 147 -27 291 -136 400 -123 123 -288 171 -454 131z"/>
+          </g>
+        </svg>
+      </button>
+
+      <button class="nav-btn" data-page="stats" title="Stats">
+        <svg class="nav-icon-portrait nav-icon-stats" viewBox="0 0 514 692" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-label="Stats">
+          <g transform="translate(0,692) scale(0.1,-0.1)">
+            <path d="M773 5579 c-270 -45 -453 -301 -404 -564 26 -136 130 -279 249 -339 211 -107 464 -52 604 131 75 100 93 156 93 299 l0 121 -42 85 c-71 142 -186 229 -346 262 -83 17 -80 17 -154 5z"/>
+            <path d="M2513 5579 c-129 -22 -240 -88 -315 -186 -60 -80 -89 -158 -95 -258 -10 -144 30 -254 128 -359 193 -207 505 -207 698 0 98 105 138 215 128 359 -6 100 -35 178 -95 258 -101 133 -292 213 -449 186z"/>
+            <path d="M4226 5574 c-234 -51 -386 -237 -386 -472 0 -188 99 -350 261 -429 196 -95 403 -61 556 92 148 148 183 361 90 548 -98 198 -314 306 -521 261z"/>
+            <path d="M2520 3774 c-81 -8 -253 -34 -355 -55 -584 -116 -1195 -434 -1745 -905 -171 -147 -400 -374 -400 -396 0 -29 90 -127 267 -291 260 -239 462 -398 706 -553 326 -208 770 -394 1083 -454 340 -65 563 -76 816 -39 527 75 938 236 1378 537 241 165 573 461 772 690 l90 102 -74 88 c-102 122 -384 408 -503 511 -239 207 -473 364 -730 492 -275 136 -527 213 -839 255 -112 15 -383 26 -466 18z m201 -244 c428 -43 805 -348 950 -768 55 -157 65 -472 20 -629 -95 -331 -310 -584 -624 -734 -161 -76 -230 -91 -443 -97 -213 -5 -291 7 -450 69 -137 53 -267 141 -390 263 -151 150 -239 298 -289 488 -154 583 166 1168 745 1362 162 54 282 66 481 46z"/>
+            <path d="M2442 3020 c-85 -18 -190 -78 -271 -155 -86 -83 -131 -150 -169 -257 -23 -64 -26 -89 -26 -198 0 -95 4 -138 18 -180 77 -230 251 -392 471 -436 295 -60 572 74 699 339 52 108 66 168 66 280 0 160 -58 303 -173 424 -79 83 -135 122 -232 159 -61 23 -87 27 -205 30 -74 2 -154 -1 -178 -6z"/>
+          </g>
+        </svg>
+      </button>
+
+      <button class="nav-btn nav-undo" id="undoBtn" title="Annuler">
+        <svg viewBox="0 0 85 85" xmlns="http://www.w3.org/2000/svg">
+          <g transform="translate(0,85) scale(0.1,-0.1)" fill="currentColor" stroke="var(--bg)" stroke-width="80" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M584 783 c-20 -37 -39 -70 -40 -71 -1 -2 -29 6 -61 18 -88 33 -195 31 -270 -5 -76 -38 -138 -101 -176 -183 -29 -61 -32 -75 -32 -167 0 -90 3 -106 28 -158 59 -119 183 -208 303 -215 79 -5 174 20 174 46 0 30 -54 127 -68 124 -106 -22 -171 -7 -228 52 -131 137 -44 366 140 366 47 0 85 -9 104 -25 2 -2 -13 -35 -32 -74 -20 -39 -36 -73 -36 -76 0 -9 434 -5 448 4 16 9 7 28 -116 256 -108 200 -94 189 -138 108z"/>
+          </g>
+        </svg>
+      </button>
+    </nav>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
