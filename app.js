@@ -46,8 +46,47 @@ const PRAXIS_DATA = [
   { id:'l03', type:'long',    label:'LIRE UN LIVRE',      color:'#005A92', active:false, progress:0 }
 ];
 
+/* ── Persistance localStorage ── */
+const STORAGE_KEY = 'praxeo_state_v1';
+
+function saveState() {
+  try {
+    const snap = {
+      praxis:       state.praxis,
+      frozen:       state.frozen,
+      frozenDays:   state.frozenDays,
+      noteHistory:  state.noteHistory,
+      statsHistory: state.statsHistory || {},
+      statsRecord:  state.statsRecord  || 0,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
+  } catch(e) { /* quota dépassé — silencieux */ }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const snap = JSON.parse(raw);
+    if (snap.praxis && snap.praxis.length) {
+      state.praxis       = snap.praxis;
+      state.frozen       = snap.frozen       || false;
+      state.frozenDays   = snap.frozenDays   || [];
+      state.noteHistory  = snap.noteHistory  || [];
+      state.statsHistory = snap.statsHistory || {};
+      state.statsRecord  = snap.statsRecord  || 0;
+      return true;
+    }
+  } catch(e) { /* données corrompues — silencieux */ }
+  return false;
+}
+
 function loadPraxis() {
-  state.praxis = PRAXIS_DATA.map(p => ({ ...p, days: p.days ? [...p.days] : undefined }));
+  if (!loadState()) {
+    // Première ouverture : charger les données par défaut
+    state.praxis = PRAXIS_DATA.map(p => ({ ...p, days: p.days ? [...p.days] : undefined }));
+    saveState();
+  }
 }
 
 /* ══════════════════════════════════════════
@@ -55,6 +94,7 @@ function loadPraxis() {
 ══════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => {
   loadPraxis();
+  loadAccueil();
   setTimeout(() => {
     document.getElementById('splash').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
@@ -112,20 +152,67 @@ function pushUndo(action) {
 function doUndo() {
   if (!state.undoStack.length) return;
   const action = state.undoStack.pop();
+
+  // Restaurer selon le type
   if (action.type === 'delete') {
     state.praxis.splice(action.idx, 0, action.praxis);
+    saveState();
   }
-  // Animer le bouton undo (l'animation CSS cible le SVG enfant)
+  else if (action.type === 'accueil_routine') {
+    delete accueil.routinesDone[action.id];
+    delete accueil.routinesSkipped[action.id];
+    saveAccueil();
+  }
+  else if (action.type === 'accueil_tache_done') {
+    delete accueil.tachesDone[action.id];
+    saveAccueil();
+  }
+  else if (action.type === 'accueil_tache_remove') {
+    delete accueil.tachesRemoved[action.id];
+    if (action.wasDone) accueil.tachesDone[action.id] = true;
+    saveAccueil();
+  }
+  else if (action.type === 'accueil_skip') {
+    delete accueil.routinesSkipped[action.id];
+    saveAccueil();
+  }
+  else if (action.type === 'accueil_long_skip') {
+    delete accueil.longsRemoved[action.id];
+    saveAccueil();
+  }
+  else if (action.type === 'accueil_long_progress') {
+    const p = state.praxis.find(x => x.id === action.id);
+    if (p) {
+      p.progress = action.prevProgress;
+      if (action.exploded) {
+        // Restaurer la bulle qui avait explosé
+        p.active = true;
+        delete accueil.longsRemoved[action.id];
+        saveAccueil();
+      }
+      saveState();
+    }
+  }
+  else if (action.type === 'accueil_note_remove') {
+    accueil.notes.splice(action.nidx, 0, action.note);
+    saveAccueil();
+  }
+  else if (action.type === 'accueil_note_tap') {
+    accueil.notes.splice(action.nidx, 0, action.note);
+    saveAccueil();
+  }
+
+  // Animer le bouton undo
   const btn = document.getElementById('undoBtn');
   if (btn) {
     btn.classList.remove('undo-flash');
-    void btn.offsetWidth; // force reflow pour relancer si appels rapides
+    void btn.offsetWidth;
     btn.classList.add('undo-flash');
     const svgEl = btn.querySelector('svg');
     (svgEl || btn).addEventListener('animationend', () => btn.classList.remove('undo-flash'), { once: true });
   }
-  // Naviguer vers la page d'origine, puis réinitialiser undoPage
-  const undoTarget = state.undoPage || state.currentPage;
+
+  const undoTarget = action.page || state.undoPage || state.currentPage;
   state.undoPage = null;
   navigate(undoTarget);
 }
@@ -237,8 +324,10 @@ function renderPraxisItem(p) {
     : '';
 
   const badges = wiggling
-    ? `<div class="edit-badge"   data-id="${p.id}">✎</div>
-       <div class="delete-badge" data-id="${p.id}">−</div>`
+    ? `<div class="praxis-badges-group">
+         <div class="edit-badge"   data-id="${p.id}">✎</div>
+         <div class="delete-badge" data-id="${p.id}">−</div>
+       </div>`
     : '';
 
   return `
@@ -251,7 +340,7 @@ function renderPraxisItem(p) {
 
 function toggleActive(id) {
   const p = state.praxis.find(x => x.id === id);
-  if (p) { p.active = !p.active; renderPraxis(); }
+  if (p) { p.active = !p.active; saveState(); renderPraxis(); }
 }
 
 function enterWiggleMode(id) {
@@ -338,7 +427,7 @@ function buildSheetHTML(editMode) {
       <div class="name-preview-row">
         <input class="sheet-input sheet-input-short" id="sheetInput" type="text"
           placeholder="Nom…" value="${s.label}" maxlength="19"
-          autocomplete="off" autocorrect="off" autocapitalize="none">
+          autocapitalize="characters" spellcheck="false">
         <div class="sheet-preview-inline" id="sheetPreview">
           ${renderPreviewBubble()}
         </div>
@@ -524,6 +613,52 @@ function savePraxis() {
 /* ══════════════════════════════════════════
    PAGE ACCUEIL
 ══════════════════════════════════════════ */
+/* ── État accueil — persisté par jour ── */
+const ACCUEIL_KEY = () => 'praxeo_accueil_' + todayKeyStatic();
+
+function todayKeyStatic() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function loadAccueil() {
+  try {
+    const raw = localStorage.getItem(ACCUEIL_KEY());
+    if (raw) {
+      const s = JSON.parse(raw);
+      accueil.routinesDone    = s.routinesDone    || {};
+      accueil.routinesSkipped = s.routinesSkipped || {};
+      accueil.tachesDone      = s.tachesDone      || {};
+      accueil.tachesRemoved   = s.tachesRemoved   || {};
+      accueil.longsRemoved    = s.longsRemoved     || {};
+      accueil.notes           = s.notes            || [];
+    }
+  } catch(e) {}
+}
+
+function saveAccueil() {
+  try {
+    const snap = {
+      routinesDone:    accueil.routinesDone,
+      routinesSkipped: accueil.routinesSkipped,
+      tachesDone:      accueil.tachesDone,
+      tachesRemoved:   accueil.tachesRemoved,
+      longsRemoved:    accueil.longsRemoved,
+      notes:           accueil.notes,
+    };
+    localStorage.setItem(ACCUEIL_KEY(), JSON.stringify(snap));
+    // Nettoyer les clés d'autres jours (garder 7 jours max)
+    const today = todayKeyStatic();
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('praxeo_accueil_') && !k.endsWith(today)) {
+        const d = k.replace('praxeo_accueil_', '');
+        const diff = (new Date(today) - new Date(d)) / 86400000;
+        if (diff > 7) { localStorage.removeItem(k); i--; }
+      }
+    }
+  } catch(e) {}
+}
+
 const accueil = {
   routinesDone:    {},
   routinesSkipped: {},
@@ -553,6 +688,7 @@ function recordRoutineDone() {
   // Mettre à jour le record de série
   const streak = computeStreak(state.statsHistory);
   if (streak > (state.statsRecord || 0)) state.statsRecord = streak;
+  saveState();
 }
 
 function todayDow() { const d = new Date().getDay(); return d === 0 ? 7 : d; }
@@ -564,7 +700,8 @@ function renderAccueil() {
   const routines = state.praxis.filter(p =>
     p.type==='routine' && p.active &&
     (!p.days || p.days.includes(dow)) &&
-    !accueil.routinesSkipped[p.id]
+    !accueil.routinesSkipped[p.id] &&
+    !accueil.routinesDone[p.id]
   );
   const taches = state.praxis.filter(p =>
     p.type==='tache' && p.active && !accueil.tachesRemoved[p.id]
@@ -711,19 +848,25 @@ function bindAccueilEvents(el) {
       if (state.frozen && type !== 'note') return;
 
       if (type === 'routine') {
+        pushUndo({ type:'accueil_routine', id, page:'accueil' });
         accueil.routinesDone[id] = true;
         recordRoutineDone();
+        saveAccueil();
         explodeBubble(b, () => renderAccueil());
       }
       else if (type === 'tache') {
         if (accueil.tachesDone[id]) {
+          pushUndo({ type:'accueil_tache_remove', id, page:'accueil' });
           explodeBubble(b, () => {
             accueil.tachesRemoved[id] = true;
             delete accueil.tachesDone[id];
+            saveAccueil();
             renderAccueil();
           });
         } else {
+          pushUndo({ type:'accueil_tache_done', id, page:'accueil' });
           accueil.tachesDone[id] = true;
+          saveAccueil();
           b.style.opacity = '0.38';
         }
       }
@@ -736,21 +879,30 @@ function bindAccueilEvents(el) {
         }
         const p = state.praxis.find(x => x.id === id);
         if (!p) return;
-        p.progress = (p.progress||0) + 1;
+        const prevProgress = p.progress || 0;
+        p.progress = prevProgress + 1;
         if (p.progress >= 4) {
+          // Explosion — undo possible avant seulement (on sauvegarde l'état pré-explosion)
+          pushUndo({ type:'accueil_long_progress', id, prevProgress, exploded: true, page:'accueil' });
+          saveState();
           const inner = b.querySelector('.bubble-long') || b;
           explodeBubble(inner, () => {
             p.active = false; p.progress = 0;
             accueil.longsRemoved[id] = true;
+            saveAccueil(); saveState();
             renderAccueil();
           });
         } else {
+          pushUndo({ type:'accueil_long_progress', id, prevProgress, exploded: false, page:'accueil' });
+          saveState();
           const fill = b.querySelector('.gauge-fill');
           if (fill) fill.style.width = (p.progress * 25) + '%';
         }
       }
       else if (type === 'note') {
-        explodeBubble(b, () => { accueil.notes.splice(nidx, 1); renderAccueil(); });
+        pushUndo({ type:'accueil_note_tap', note: { ...accueil.notes[nidx] }, nidx, page:'accueil' });
+        saveAccueil();
+        explodeBubble(b, () => { accueil.notes.splice(nidx, 1); saveAccueil(); renderAccueil(); });
       }
     });
   });
@@ -800,11 +952,23 @@ function exitAccueilWiggle() {
 }
 
 function removeFromAccueil(type, id, nidx) {
-  if (type === 'routine')     accueil.routinesSkipped[id] = true;
-  else if (type === 'tache') { accueil.tachesRemoved[id] = true; delete accueil.tachesDone[id]; }
-  else if (type === 'long')   accueil.longsRemoved[id] = true;
-  else if (type === 'note' && nidx !== null) accueil.notes.splice(nidx, 1);
+  // Capturer l'état pour undo
+  if (type === 'routine') {
+    pushUndo({ type:'accueil_skip', id, page:'accueil' });
+    accueil.routinesSkipped[id] = true;
+  } else if (type === 'tache') {
+    pushUndo({ type:'accueil_tache_remove', id, wasDone: !!accueil.tachesDone[id], page:'accueil' });
+    accueil.tachesRemoved[id] = true;
+    delete accueil.tachesDone[id];
+  } else if (type === 'long') {
+    pushUndo({ type:'accueil_long_skip', id, page:'accueil' });
+    accueil.longsRemoved[id] = true;
+  } else if (type === 'note' && nidx !== null) {
+    pushUndo({ type:'accueil_note_remove', note: { ...accueil.notes[nidx] }, nidx, page:'accueil' });
+    accueil.notes.splice(nidx, 1);
+  }
   accueil.wiggleId = accueil.wiggleType = null;
+  saveAccueil();
   renderAccueil();
 }
 
@@ -923,7 +1087,7 @@ function openNoteSheet() {
     <div class="sheet-handle"></div>
     <div class="sheet-row">
       <input class="sheet-input" id="noteInput" type="text"
-        placeholder="Note…" autocomplete="off" autocorrect="off" autocapitalize="none">
+        placeholder="Note…" autocapitalize="sentences" spellcheck="true">
     </div>
     ${histHTML}
     <div class="sheet-actions">
@@ -939,15 +1103,13 @@ function openNoteSheet() {
     accueil.notes.push({ label, color: COLORS[Math.floor(Math.random()*COLORS.length)] });
     // Mettre à jour l'historique (max 6, pas de doublons)
     state.noteHistory = [label, ...state.noteHistory.filter(n => n !== label)].slice(0, 6);
+    saveState();
     closeSheet();
     renderAccueil();
   }
 
-  input.addEventListener('input', e => {
-    const pos = e.target.selectionStart;
-    e.target.value = e.target.value.toUpperCase();
-    e.target.setSelectionRange(pos, pos);
-  });
+  // Pas de forçage de casse — le clavier natif gère la saisie normalement
+  // Le rendu se fait en minuscule via .toLowerCase() dans renderNoteBubble
   input.addEventListener('keydown', e => { if (e.key==='Enter') addNote(input.value.trim()); });
   sheet.querySelector('#btnNoteCancel').addEventListener('click', closeSheet);
   sheet.querySelector('#btnNoteCreate').addEventListener('click', () => addNote(input.value.trim()));
@@ -1072,6 +1234,7 @@ function openMenu() {
         state.frozen       = false;
         state.statsHistory = {};
         state.statsRecord  = 0;
+        saveState();
         renderStats();
       }
     );
@@ -1127,6 +1290,7 @@ function importData(data) {
   if (data.frozen !== undefined)  state.frozen       = data.frozen;
   if (data.statsHistory)          state.statsHistory = data.statsHistory;
   if (data.statsRecord !== undefined) state.statsRecord = data.statsRecord;
+  saveState();
   navigate(state.currentPage);
 }
 

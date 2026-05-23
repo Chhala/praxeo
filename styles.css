@@ -27,11 +27,23 @@
   --font-sans: -apple-system, BlinkMacSystemFont, sans-serif;
 
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top:    env(safe-area-inset-top, 0px);
 }
 
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
+
+/* Bloquer le menu contextuel Apple (iOS) sauf sur les champs de saisie */
+#app, #splash {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+#app input, #app textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
 
 body {
   font-family: var(--font-sans);
@@ -133,7 +145,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px 10px;
+  padding-top: calc(18px + var(--safe-top));
+  padding-bottom: 10px;
+  padding-left: 20px;
+  padding-right: 20px;
   flex-shrink: 0;
   background: var(--bg);
 }
@@ -483,22 +498,46 @@ body {
 /* Badge « - » suppression (long press) */
 .praxis-item .delete-badge {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 18px;
-  height: 18px;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #e63946;
   color: #fff;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
-  line-height: 18px;
+  line-height: 20px;
   text-align: center;
   display: none;
   z-index: 5;
   cursor: pointer;
+  /* Zone de tap élargie */
+  padding: 6px;
+  margin: -6px;
+  box-sizing: content-box;
 }
 .praxis-item.wiggle .delete-badge { display: block; }
+
+/* Groupe badges Praxis — même espacement que acc-badges-group */
+.praxis-badges-group {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  gap: 14px;
+  z-index: 5;
+}
+.praxis-badges-group .edit-badge,
+.praxis-badges-group .delete-badge {
+  position: static;
+  top: auto;
+  right: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
 @keyframes wiggle {
   0%, 100% { transform: rotate(-2deg); }
   50%       { transform: rotate(2deg); }
@@ -1019,20 +1058,24 @@ body {
 .edit-badge {
   position: absolute;
   top: -6px;
-  right: 16px;
-  width: 18px;
-  height: 18px;
+  right: 20px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--egee);
   color: #fff;
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 12px;
+  line-height: 20px;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
   cursor: pointer;
+  /* Zone de tap élargie */
+  padding: 6px;
+  margin: -6px;
+  box-sizing: content-box;
 }
 
 /* Badge édition jauge long terme */
@@ -1232,8 +1275,12 @@ body {
    MENU 3 POINTS
 ══════════════════════════════════════════ */
 .menu-btn {
-  position: relative;
-  width: 32px;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
   height: 28px;
   border: none;
   background: transparent;
@@ -1242,18 +1289,15 @@ body {
   -webkit-tap-highlight-color: transparent;
   border-radius: 6px;
 }
-/* 3 points en diagonale (style Edge) */
+/* 3 points horizontaux */
 .menu-dot {
-  position: absolute;
   width: 4px;
   height: 4px;
   border-radius: 50%;
   background: var(--text);
   opacity: 0.6;
+  flex-shrink: 0;
 }
-.menu-dot:nth-child(1) { top: 6px;  left: 10px; }
-.menu-dot:nth-child(2) { top: 12px; left: 15px; }
-.menu-dot:nth-child(3) { top: 18px; left: 20px; }
 .menu-btn:active .menu-dot { opacity: 1; }
 
 .menu-list { display: flex; flex-direction: column; gap: 2px; padding: 4px 0; }
@@ -1315,14 +1359,16 @@ body {
   top: -6px;
   right: -6px;
   display: flex;
-  gap: 4px;
+  gap: 14px;   /* espace entre stylo et suppression — ajuster ici */
   z-index: 10;
 }
 .acc-badges-group .acc-badge {
   position: static;
   top: auto; right: auto;
-  margin: 0; padding: 0;
-  width: 18px; height: 18px;
+  /* Même taille et zone de tap que les autres badges */
+  padding: 6px;
+  margin: 0;
+  box-sizing: content-box;
 }
 
 /* Wrapper long terme */
@@ -1415,8 +1461,9 @@ body {
    modifier les deux valeurs width/height ci-dessous.
    Référence : accueil = 24×24px, praxis = 18×24px (base).  */
 .nav-icon-stats {
-  width: 21px;   /* base 18px × 1.15 */
-  height: 28px;  /* base 24px × 1.15 */
+  width: 21px !important;   /* base 18px × 1.15 — ajuster ici pour resize */
+  height: 28px !important;  /* base 24px × 1.15 — ajuster ici pour resize */
+  overflow: visible;
 }
 
 /* Undo button — 75% */
@@ -1441,19 +1488,19 @@ body {
   flex-wrap: nowrap;
 }
 .color-days-row .color-swatch {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
 }
 .color-days-row .days-grid-inline {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
   flex-wrap: nowrap;
 }
 .color-days-row .day-btn-sm {
-  width: 22px;
-  height: 22px;
-  font-size: 6.5px;
+  width: 26px;
+  height: 26px;
+  font-size: 7.5px;
 }
 
 /* ══════════════════════════════════════════
