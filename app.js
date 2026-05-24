@@ -94,6 +94,7 @@ function loadPraxis() {
 window.addEventListener('DOMContentLoaded', () => {
   loadPraxis();
   loadAccueil();
+  recalibrateTodayStats();
   setTimeout(() => {
     document.getElementById('splash').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
@@ -742,6 +743,25 @@ const accueil = {
 
 /* ── Enregistrement stats quotidiennes ── */
 function todayKey() { return new Date().toISOString().slice(0, 10); }
+
+function recalibrateTodayStats() {
+  // Corrige l'entrée du jour si done ne correspond pas à routinesDone réel
+  if (!state.statsHistory) return;
+  const key = todayKey();
+  const entry = state.statsHistory[key];
+  if (!entry) return; // pas d'entrée aujourd'hui, rien à corriger
+  const dow = todayDow();
+  const allActive = state.praxis.filter(p =>
+    p.type === 'routine' && p.active && (!p.days || p.days.includes(dow))
+  );
+  const doneIds = Object.keys(accueil.routinesDone);
+  const done = doneIds.filter(id => allActive.some(p => p.id === id)).length;
+  const total = allActive.length;
+  if (entry.done !== done || entry.total !== total) {
+    state.statsHistory[key] = { done, total, ids: doneIds };
+    saveState();
+  }
+}
 
 function recordRoutineDone() {
   const key = todayKey();
