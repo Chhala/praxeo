@@ -31,7 +31,7 @@ const PRAXIS_DATA = [
   { id:'r01', type:'routine', label:'FAIRE LE LIT', color:randColor(), active:true,  days:[1,2,3,4,5,6,7] },
   { id:'t01', type:'tache',   label:'COURSES',      color:randColor(), active:true  },
   { id:'t02', type:'tache',   label:'SÉRIE TV',     color:randColor(), active:true  },
-  { id:'l01', type:'long',    label:'LIRE UN LIVRE',color:randColor(), active:true,  progress:1 },
+  { id:'l01', type:'long',    label:'LIRE UN LIVRE',color:randColor(), active:true,  progress:0 },
 ];
 
 function randColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
@@ -387,6 +387,7 @@ function initPraxisDragDrop(el) {
     const dx = e.clientX - startX, dy = e.clientY - startY;
     const dist = Math.sqrt(dx*dx + dy*dy);
     if (!isDragging && dist < 10) return;
+    e.preventDefault();
 
     if (!isDragging) {
       isDragging = true;
@@ -420,11 +421,10 @@ function initPraxisDragDrop(el) {
   }
 
   el.querySelectorAll('.praxis-item').forEach(item => {
-    item.addEventListener('pointerdown',   onPointerDown, { passive: true });
-    item.addEventListener('pointermove',   onPointerMove, { passive: true });
+    item.addEventListener('pointerdown',   onPointerDown);
+    item.addEventListener('pointermove',   onPointerMove);
     item.addEventListener('pointerup',     onPointerUp);
     item.addEventListener('pointercancel', cleanup);
-    // Bloquer le click si on était en drag
     item.addEventListener('click', e => {
       if (isDragging) { e.stopImmediatePropagation(); }
     }, true);
@@ -444,8 +444,9 @@ function initSheet() {
   sheet.className = 'bottom-sheet';
   sheet.id = 'bottomSheet';
 
-  document.body.appendChild(overlay);
-  document.body.appendChild(sheet);
+  const appEl = document.getElementById('app');
+  appEl.appendChild(overlay);
+  appEl.appendChild(sheet);
 }
 
 function buildSheetHTML(editMode) {
@@ -1046,6 +1047,7 @@ function initAccueilDragDrop(el) {
       const dx = e.clientX - startX, dy = e.clientY - startY;
       const dist = Math.sqrt(dx*dx + dy*dy);
       if (!isDragging && dist < 10) return;
+      e.preventDefault();
 
       if (!isDragging) {
         isDragging = true;
@@ -1090,11 +1092,10 @@ function initAccueilDragDrop(el) {
       cleanup();
     }
 
-    row.addEventListener('pointerdown',   onDown, { passive: true });
-    row.addEventListener('pointermove',   onMove, { passive: true });
+    row.addEventListener('pointerdown',   onDown);
+    row.addEventListener('pointermove',   onMove);
     row.addEventListener('pointerup',     onUp);
     row.addEventListener('pointercancel', cleanup);
-    // Bloquer click si drag en cours
     row.addEventListener('click', e => {
       if (isDragging) e.stopImmediatePropagation();
     }, true);
@@ -1188,8 +1189,8 @@ function openGaugeSheet(id) {
   const sheet   = getSheet();
   const cur     = p.progress || 0;
 
-  // 4 crans = 100% (chaque cran = 25%)
-  const steps = [0, 1, 2, 3, 4];
+  // 3 crans max dans la sheet (0%/25%/50%/75%) — 100% = explosion par tap uniquement
+  const steps = [0, 1, 2, 3];
 
   sheet.innerHTML = `
     <div class="sheet-handle"></div>
@@ -1229,22 +1230,6 @@ function openGaugeSheet(id) {
     if (selected !== prevProgress) {
       pushUndo({ type:'accueil_long_progress', id, prevProgress, exploded: false, page:'accueil' });
       p.progress = selected;
-      if (selected >= 4) {
-        closeSheet();
-        const wrap = document.querySelector(`.acc-bubble-wrap[data-id="${id}"]`);
-        const inner = wrap ? wrap.querySelector('.bubble-long') : null;
-        const target = inner || wrap;
-        if (target) {
-          p.active = false; p.progress = 0;
-          accueil.longsRemoved[id] = true;
-          explodeBubble(target, () => { saveAccueil(); saveState(); renderAccueil(); });
-        } else {
-          p.active = false; p.progress = 0;
-          accueil.longsRemoved[id] = true;
-          saveAccueil(); saveState(); renderAccueil();
-        }
-        return;
-      }
       saveState();
     }
     closeSheet();

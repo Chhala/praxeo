@@ -140,6 +140,8 @@ body {
   height: 100dvh;
   background: var(--bg);
   overflow: hidden;
+  isolation: isolate;
+  position: relative;
 }
 
 /* ── Header ── */
