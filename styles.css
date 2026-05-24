@@ -500,23 +500,22 @@ body {
 /* Badge « - » suppression (long press) */
 .praxis-item .delete-badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 20px;
-  height: 20px;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #e63946;
   color: #fff;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
-  line-height: 20px;
+  line-height: 24px;
   text-align: center;
   display: none;
   z-index: 5;
   cursor: pointer;
-  /* Zone de tap élargie */
-  padding: 6px;
-  margin: -6px;
+  padding: 10px;
+  margin: -10px;
   box-sizing: content-box;
 }
 .praxis-item.wiggle .delete-badge { display: block; }
@@ -1071,22 +1070,21 @@ body {
 /* Badges édition sur praxis */
 .edit-badge {
   position: absolute;
-  top: -6px;
+  top: -8px;
   right: 20px;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: var(--egee);
   color: #fff;
-  font-size: 18px;
-  line-height: 28px;
+  font-size: 16px;
+  line-height: 24px;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
   cursor: pointer;
-  /* Zone de tap élargie */
   padding: 10px;
   margin: -10px;
   box-sizing: content-box;
@@ -1095,21 +1093,24 @@ body {
 /* Badge édition jauge long terme */
 .edit-gauge-badge {
   position: absolute;
-  top: -6px;
+  top: -8px;
   right: 16px;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: var(--egee);
   color: #fff;
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 16px;
+  line-height: 24px;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
   cursor: pointer;
+  padding: 10px;
+  margin: -10px;
+  box-sizing: content-box;
 }
 
 /* Bulle long terme en mode édition jauge */
@@ -1220,36 +1221,35 @@ body {
 ══════════════════════════════════════════ */
 .acc-badge {
   position: absolute;
-  top: -7px;
-  width: 20px;
-  height: 20px;
+  top: -8px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
-  line-height: 20px;
+  line-height: 24px;
   text-align: center;
   z-index: 10;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Zone de tap agrandie */
-  padding: 6px;
-  margin: -6px;
+  padding: 10px;
+  margin: -10px;
   box-sizing: content-box;
 }
 
 .acc-badge-delete {
-  right: -7px;
+  right: -8px;
   background: #e63946;
   color: #fff;
 }
 
 .acc-badge-edit {
-  left: -7px;
+  left: -8px;
   background: var(--egee);
   color: #fff;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 /* Animation wiggle sur les bulles de l'accueil */
@@ -1347,13 +1347,13 @@ body {
 ══════════════════════════════════════════ */
 .acc-badge {
   position: absolute;
-  top: -6px;
-  width: 28px;
-  height: 28px;
+  top: -8px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  line-height: 28px;
+  line-height: 24px;
   text-align: center;
   z-index: 10;
   cursor: pointer;
@@ -1364,8 +1364,8 @@ body {
   margin: -10px;
   box-sizing: content-box;
 }
-.acc-badge-delete { right: -6px; background: #e63946; color: #fff; }
-.acc-badge-edit   { background: var(--egee); color: #fff; font-size: 18px; }
+.acc-badge-delete { right: -8px; background: #e63946; color: #fff; }
+.acc-badge-edit   { background: var(--egee); color: #fff; font-size: 16px; }
 
 /* Badges groupés côte à côte pour long terme */
 .acc-badges-group {

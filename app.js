@@ -320,7 +320,7 @@ function renderPraxisItem(p) {
     : '';
 
   return `
-    <div class="${cls}" ${styleAttr} data-id="${p.id}" draggable="true">
+    <div class="${cls}" ${styleAttr} data-id="${p.id}" >
       ${gaugeFill}${checkSvg}
       <span class="praxis-item-label">${p.label}</span>
       ${badges}
@@ -356,29 +356,77 @@ function deletePraxis(id) {
 function initPraxisDragDrop(el) {
   const trash = el.querySelector('#btnTrash');
   if (!trash) return;
-  let dragId = null;
+
+  let dragEl    = null;
+  let dragId    = null;
+  let clone     = null;
+  let startX    = 0, startY = 0;
+  let overTrash = false;
+
+  function trashRect() { return trash.getBoundingClientRect(); }
+
+  function onPointerDown(e) {
+    if (state.wiggleId) return; // Ne pas démarrer si en mode wiggle
+    const item = e.currentTarget;
+    // Délai court pour distinguer tap et drag
+    dragEl = item;
+    dragId = item.dataset.id;
+    startX = e.clientX;
+    startY = e.clientY;
+  }
+
+  function onPointerMove(e) {
+    if (!dragEl) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (!clone && Math.sqrt(dx*dx + dy*dy) < 8) return; // seuil de déclenchement
+
+    if (!clone) {
+      // Créer le clone fantôme
+      clone = dragEl.cloneNode(true);
+      clone.style.cssText = `
+        position:fixed; z-index:9999; pointer-events:none;
+        opacity:0.75; transform:scale(1.05);
+        left:${dragEl.getBoundingClientRect().left}px;
+        top:${dragEl.getBoundingClientRect().top}px;
+        width:${dragEl.offsetWidth}px;
+        transition:none;
+      `;
+      document.body.appendChild(clone);
+      dragEl.style.opacity = '0.3';
+    }
+
+    clone.style.left = (dragEl.getBoundingClientRect().left + dx) + 'px';
+    clone.style.top  = (dragEl.getBoundingClientRect().top  + dy) + 'px';
+
+    // Détecter survol corbeille
+    const tr = trashRect();
+    const cx = e.clientX, cy = e.clientY;
+    const hit = cx >= tr.left && cx <= tr.right && cy >= tr.top && cy <= tr.bottom;
+    if (hit !== overTrash) {
+      overTrash = hit;
+      trash.classList.toggle('trash-active', hit);
+    }
+  }
+
+  function onPointerUp(e) {
+    if (!dragEl) return;
+    if (clone) {
+      clone.remove(); clone = null;
+      dragEl.style.opacity = '';
+      trash.classList.remove('trash-active');
+      if (overTrash && dragId) {
+        const p = state.praxis.find(x => x.id === dragId);
+        if (p) openConfirmDeleteSheet(dragId, p.label);
+      }
+    }
+    dragEl = null; dragId = null; overTrash = false;
+  }
 
   el.querySelectorAll('.praxis-item').forEach(item => {
-    item.addEventListener('dragstart', e => {
-      dragId = item.dataset.id;
-      item.style.opacity = '0.45';
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    item.addEventListener('dragend', () => {
-      item.style.opacity = '';
-      trash.classList.remove('trash-active');
-    });
-  });
-
-  trash.addEventListener('dragover', e => { e.preventDefault(); trash.classList.add('trash-active'); });
-  trash.addEventListener('dragleave', () => trash.classList.remove('trash-active'));
-  trash.addEventListener('drop', e => {
-    e.preventDefault();
-    trash.classList.remove('trash-active');
-    if (!dragId) return;
-    const p = state.praxis.find(x => x.id === dragId);
-    if (p) openConfirmDeleteSheet(dragId, p.label);
-    dragId = null;
+    item.addEventListener('pointerdown', onPointerDown);
+    item.addEventListener('pointermove', onPointerMove);
+    item.addEventListener('pointerup',   onPointerUp);
+    item.addEventListener('pointercancel', onPointerUp);
   });
 }
 
@@ -758,7 +806,7 @@ function renderAccueilBubble(p, type) {
   if (type === 'routine') {
     return `<div class="bubble bubble-routine${wiggling?' acc-wiggle':''}"
                style="background:${p.color}; position:relative;"
-               data-id="${p.id}" data-type="routine" draggable="true">
+               data-id="${p.id}" data-type="routine" >
                ${p.label}${delBadge}
              </div>`;
   }
@@ -766,7 +814,7 @@ function renderAccueilBubble(p, type) {
     const done = accueil.tachesDone[p.id];
     return `<div class="bubble${done?' bubble-done':''}${wiggling?' acc-wiggle':''}"
                style="background:${p.color};${done?'opacity:.38;':''} position:relative;"
-               data-id="${p.id}" data-type="tache" draggable="true">
+               data-id="${p.id}" data-type="tache" >
                ${p.label}${delBadge}
              </div>`;
   }
@@ -777,7 +825,7 @@ function renderAccueilBubble(p, type) {
         <div class="acc-badge acc-badge-edit" data-id="${p.id}">✎</div>
       </div>` : '';
     return `<div class="acc-bubble-wrap${wiggling?' acc-wiggle':''}${gaugeEdit?' gauge-editing-wrap':''}"
-               data-id="${p.id}" data-type="long" draggable="true">
+               data-id="${p.id}" data-type="long" >
                <div class="bubble-long${gaugeEdit?' gauge-editing':''}"
                     style="border-color:${p.color};color:${p.color};">
                  <div class="gauge-fill" style="width:${Math.min((p.progress||0)*25,100)}%;background:${p.color};"></div>
@@ -793,8 +841,12 @@ function renderNoteBubble(note, idx) {
   const wiggling = accueil.wiggleId === 'note_'+idx && accueil.wiggleType === 'note';
   const badge    = wiggling
     ? `<div class="acc-badge acc-badge-delete" data-noteidx="${idx}" data-type="note">−</div>` : '';
+  const noteColor = note.color || '';
+  const noteStyle = noteColor
+    ? `position:relative;background:${noteColor};color:#fff;border-color:${noteColor};`
+    : `position:relative;`;
   return `<div class="bubble-note-style${wiggling?' acc-wiggle':''}"
-             style="position:relative;"
+             style="${noteStyle}"
              data-noteidx="${idx}" data-type="note">
              ${note.label.toLowerCase()}${badge}
            </div>`;
@@ -965,19 +1017,78 @@ function initAccueilDragDrop(el) {
   ['rowRoutine','rowTache','rowLong','rowNote'].forEach(rowId => {
     const row = el.querySelector('#'+rowId);
     if (!row) return;
-    let dragEl = null;
-    row.addEventListener('dragstart', e => {
-      dragEl = e.target.closest('[data-id],[data-noteidx]');
-      if (dragEl) dragEl.style.opacity = '0.4';
-    });
-    row.addEventListener('dragover', e => {
-      e.preventDefault();
-      const target = e.target.closest('[data-id],[data-noteidx]');
-      if (!target || target === dragEl) return;
-      const before = e.clientX < target.getBoundingClientRect().left + target.getBoundingClientRect().width / 2;
-      row.insertBefore(dragEl, before ? target : target.nextSibling);
-    });
-    row.addEventListener('dragend', () => { if (dragEl) dragEl.style.opacity = ''; dragEl = null; });
+
+    let dragEl  = null;
+    let clone   = null;
+    let startX  = 0, startY = 0;
+    let offsetX = 0, offsetY = 0;
+
+    function getBubbles() {
+      return [...row.querySelectorAll('[data-id],[data-noteidx]')].filter(b => b !== dragEl);
+    }
+
+    function onDown(e) {
+      // Ignorer les badges
+      if (e.target.closest('.acc-badge')) return;
+      const bubble = e.target.closest('[data-id],[data-noteidx]');
+      if (!bubble) return;
+      dragEl = bubble;
+      startX = e.clientX;
+      startY = e.clientY;
+      const r = bubble.getBoundingClientRect();
+      offsetX = e.clientX - r.left;
+      offsetY = e.clientY - r.top;
+    }
+
+    function onMove(e) {
+      if (!dragEl) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (!clone && Math.sqrt(dx*dx + dy*dy) < 8) return;
+
+      if (!clone) {
+        clone = dragEl.cloneNode(true);
+        // Supprimer les badges éventuels dans le clone
+        clone.querySelectorAll('.acc-badge,.acc-badges-group').forEach(b => b.remove());
+        const r = dragEl.getBoundingClientRect();
+        clone.style.cssText = `
+          position:fixed; z-index:9999; pointer-events:none;
+          opacity:0.75; transform:scale(1.06);
+          left:${r.left}px; top:${r.top}px;
+          width:${dragEl.offsetWidth}px;
+          transition:none;
+        `;
+        document.body.appendChild(clone);
+        dragEl.style.opacity = '0.25';
+      }
+
+      clone.style.left = (e.clientX - offsetX) + 'px';
+      clone.style.top  = (e.clientY - offsetY) + 'px';
+
+      // Trouver la bulle cible et réordonner visuellement
+      const cx = e.clientX;
+      let inserted = false;
+      for (const sib of getBubbles()) {
+        const r = sib.getBoundingClientRect();
+        if (cx < r.left + r.width / 2) {
+          row.insertBefore(dragEl, sib);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) row.appendChild(dragEl);
+    }
+
+    function onUp() {
+      if (!dragEl) return;
+      if (clone) { clone.remove(); clone = null; }
+      dragEl.style.opacity = '';
+      dragEl = null;
+    }
+
+    row.addEventListener('pointerdown',   onDown);
+    row.addEventListener('pointermove',   onMove);
+    row.addEventListener('pointerup',     onUp);
+    row.addEventListener('pointercancel', onUp);
   });
 }
 
