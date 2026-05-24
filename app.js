@@ -169,6 +169,7 @@ function doUndo() {
     delete accueil.routinesDone[action.id];
     delete accueil.routinesSkipped[action.id];
     saveAccueil();
+    recordRoutineDone(); // recalcule l'entrée du jour dans statsHistory
   }
   else if (action.type === 'accueil_tache_done') {
     delete accueil.tachesDone[action.id];
@@ -332,7 +333,7 @@ function renderPraxisItem(p) {
 
   const badges = wiggling
     ? `<div class="praxis-badges-group">
-         <div class="edit-badge" data-id="${p.id}">✎</div>
+         <div class="edit-badge" data-id="${p.id}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg></div>
        </div>`
     : '';
 
@@ -832,7 +833,7 @@ function renderAccueilBubble(p, type) {
 
   // Badge édition jauge — à gauche du badge suppression (donc rendu en premier pour long terme)
   const editGauge = (wiggling && type === 'long')
-    ? `<div class="acc-badge acc-badge-edit" data-id="${p.id}">✎</div>` : '';
+    ? `<div class="acc-badge acc-badge-edit" data-id="${p.id}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg></div>` : '';
 
   if (type === 'routine') {
     return `<div class="bubble bubble-routine${wiggling?' acc-wiggle':''}"
@@ -850,10 +851,10 @@ function renderAccueilBubble(p, type) {
              </div>`;
   }
   if (type === 'long') {
-    // Badges groupés côte à côte à droite : [✎][−]
+    // Badges groupés côte à côte à droite : [<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg>][−]
     const badges = wiggling ? `
       <div class="acc-badges-group">
-        <div class="acc-badge acc-badge-edit" data-id="${p.id}">✎</div>
+        <div class="acc-badge acc-badge-edit" data-id="${p.id}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg></div>
       </div>` : '';
     return `<div class="acc-bubble-wrap${wiggling?' acc-wiggle':''}${gaugeEdit?' gauge-editing-wrap':''}"
                data-id="${p.id}" data-type="long" >

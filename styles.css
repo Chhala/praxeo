@@ -1072,9 +1072,6 @@ body {
   border-radius: 50%;
   background: var(--egee);
   color: #fff;
-  font-size: 16px;
-  line-height: 24px;
-  text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1095,9 +1092,6 @@ body {
   border-radius: 50%;
   background: var(--egee);
   color: #fff;
-  font-size: 16px;
-  line-height: 24px;
-  text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1220,10 +1214,6 @@ body {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 24px;
-  text-align: center;
   z-index: 10;
   cursor: pointer;
   display: flex;
@@ -1244,7 +1234,6 @@ body {
   left: -8px;
   background: var(--egee);
   color: #fff;
-  font-size: 16px;
 }
 
 /* Animation wiggle sur les bulles de l'accueil */
