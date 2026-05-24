@@ -27,14 +27,23 @@ let state = {
 /* ══════════════════════════════════════════
    DONNÉES
 ══════════════════════════════════════════ */
-const PRAXIS_DATA = [
-  { id:'r01', type:'routine', label:'FAIRE LE LIT', color:randColor(), active:true,  days:[1,2,3,4,5,6,7] },
-  { id:'t01', type:'tache',   label:'COURSES',      color:randColor(), active:true  },
-  { id:'t02', type:'tache',   label:'SÉRIE TV',     color:randColor(), active:true  },
-  { id:'l01', type:'long',    label:'LIRE UN LIVRE',color:randColor(), active:true,  progress:0 },
-];
-
 function randColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
+function pickColors(n) {
+  const pool = [...COLORS];
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    out.push(pool.splice(idx, 1)[0]);
+  }
+  return out;
+}
+const _dc = pickColors(4);
+const PRAXIS_DATA = [
+  { id:'r01', type:'routine', label:'FAIRE LE LIT', color:_dc[0], active:true,  days:[1,2,3,4,5,6,7] },
+  { id:'t01', type:'tache',   label:'COURSES',      color:_dc[1], active:true  },
+  { id:'t02', type:'tache',   label:'SÉRIE TV',     color:_dc[2], active:true  },
+  { id:'l01', type:'long',    label:'LIRE UN LIVRE',color:_dc[3], active:true,  progress:0 },
+];
 
 /* ── Persistance localStorage ── */
 const STORAGE_KEY = 'praxeo_state_v1';
@@ -89,6 +98,14 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('splash').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     navigate('accueil');
+    requestAnimationFrame(() => {
+      const h  = document.querySelector('.header');
+      const sw = document.querySelector('.header-sub-wrap');
+      if (h && sw) {
+        const totalH = h.getBoundingClientRect().height + sw.getBoundingClientRect().height;
+        document.documentElement.style.setProperty('--header-total-height', totalH + 'px');
+      }
+    });
   }, 1800);
   initNav();
   initSheet();
@@ -361,48 +378,43 @@ function initPraxisDragDrop(el) {
   let dragId    = null;
   let clone     = null;
   let startX    = 0, startY = 0;
-  let isDragging = false;
-  let overTrash  = false;
+  let isDragging  = false;
+  let wasDragging = false;
+  let overTrash   = false;
+  let activePointerId = null;
 
   function cleanup() {
     if (clone) { clone.remove(); clone = null; }
     if (dragEl) { dragEl.style.opacity = ''; }
     trash.classList.remove('trash-active');
+    document.removeEventListener('pointermove', onDocMove);
+    document.removeEventListener('pointerup',   onDocUp);
+    document.removeEventListener('pointercancel', onDocCancel);
     dragEl = null; dragId = null; isDragging = false; overTrash = false;
+    activePointerId = null;
   }
 
-  function onPointerDown(e) {
-    // Ignorer badges et mode wiggle
-    if (state.wiggleId) return;
-    if (e.target.closest('.edit-badge,.delete-badge,.praxis-badges-group')) return;
-    dragEl = e.currentTarget;
-    dragId = dragEl.dataset.id;
-    startX = e.clientX;
-    startY = e.clientY;
-    dragEl.setPointerCapture(e.pointerId);
-  }
-
-  function onPointerMove(e) {
-    if (!dragEl) return;
+  function onDocMove(e) {
+    if (!dragEl || e.pointerId !== activePointerId) return;
     const dx = e.clientX - startX, dy = e.clientY - startY;
     const dist = Math.sqrt(dx*dx + dy*dy);
-    if (!isDragging && dist < 10) return;
+    if (!isDragging && dist < 12) return;
     e.preventDefault();
 
     if (!isDragging) {
-      isDragging = true;
+      isDragging  = true;
+      wasDragging = true;
       const r = dragEl.getBoundingClientRect();
       clone = dragEl.cloneNode(true);
       clone.querySelectorAll('.edit-badge,.delete-badge,.praxis-badges-group').forEach(b => b.remove());
       clone.style.cssText = `position:fixed;z-index:9999;pointer-events:none;
-        opacity:0.8;left:${r.left}px;top:${r.top}px;
-        width:${r.width}px;margin:0;`;
+        opacity:0.8;left:${r.left}px;top:${r.top}px;width:${r.width}px;margin:0;`;
       document.body.appendChild(clone);
       dragEl.style.opacity = '0.3';
     }
 
-    clone.style.left = (startX - 20 + dx) + 'px';  // légèrement décalé
-    clone.style.top  = (startY - 15 + dy) + 'px';
+    clone.style.left = (e.clientX - 20) + 'px';
+    clone.style.top  = (e.clientY - 15) + 'px';
 
     const tr = trash.getBoundingClientRect();
     const hit = e.clientX >= tr.left && e.clientX <= tr.right
@@ -410,23 +422,41 @@ function initPraxisDragDrop(el) {
     if (hit !== overTrash) { overTrash = hit; trash.classList.toggle('trash-active', hit); }
   }
 
-  function onPointerUp(e) {
-    if (!dragEl) return;
-    const wasActuallyDragging = isDragging;
-    if (wasActuallyDragging && overTrash && dragId) {
+  function onDocUp(e) {
+    if (!dragEl || e.pointerId !== activePointerId) return;
+    if (isDragging && overTrash && dragId) {
       const p = state.praxis.find(x => x.id === dragId);
       if (p) { cleanup(); openConfirmDeleteSheet(dragId, p.label); return; }
     }
     cleanup();
   }
 
+  function onDocCancel(e) {
+    if (!dragEl || e.pointerId !== activePointerId) return;
+    cleanup();
+  }
+
   el.querySelectorAll('.praxis-item').forEach(item => {
-    item.addEventListener('pointerdown',   onPointerDown);
-    item.addEventListener('pointermove',   onPointerMove);
-    item.addEventListener('pointerup',     onPointerUp);
-    item.addEventListener('pointercancel', cleanup);
+    item.addEventListener('pointerdown', e => {
+      if (state.wiggleId) return;
+      if (e.target.closest('.edit-badge,.delete-badge,.praxis-badges-group')) return;
+      dragEl = item;
+      dragId = item.dataset.id;
+      startX = e.clientX;
+      startY = e.clientY;
+      wasDragging = false;
+      activePointerId = e.pointerId;
+      document.addEventListener('pointermove',   onDocMove, { passive: false });
+      document.addEventListener('pointerup',     onDocUp);
+      document.addEventListener('pointercancel', onDocCancel);
+    });
+
     item.addEventListener('click', e => {
-      if (isDragging) { e.stopImmediatePropagation(); }
+      if (wasDragging) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        wasDragging = false;
+      }
     }, true);
   });
 }
@@ -444,9 +474,8 @@ function initSheet() {
   sheet.className = 'bottom-sheet';
   sheet.id = 'bottomSheet';
 
-  const appEl = document.getElementById('app');
-  appEl.appendChild(overlay);
-  appEl.appendChild(sheet);
+  document.body.appendChild(overlay);
+  document.body.appendChild(sheet);
 }
 
 function buildSheetHTML(editMode) {
@@ -1012,12 +1041,14 @@ function initAccueilDragDrop(el) {
     const row = el.querySelector('#'+rowId);
     if (!row) return;
 
-    let dragEl     = null;
-    let clone      = null;
+    let dragEl      = null;
+    let clone       = null;
     let placeholder = null;
-    let startX     = 0, startY = 0;
-    let offsetX    = 0, offsetY = 0;
-    let isDragging = false;
+    let startX = 0, startY = 0;
+    let offsetX = 0, offsetY = 0;
+    let isDragging  = false;
+    let wasDragging = false;
+    let activePointerId = null;
 
     function getSiblings() {
       return [...row.querySelectorAll('[data-id],[data-noteidx]')].filter(b => b !== placeholder);
@@ -1027,49 +1058,37 @@ function initAccueilDragDrop(el) {
       if (clone)       { clone.remove();       clone = null; }
       if (placeholder) { placeholder.remove(); placeholder = null; }
       if (dragEl)      { dragEl.style.display = ''; dragEl.style.opacity = ''; }
-      dragEl = null; isDragging = false;
+      document.removeEventListener('pointermove',   onDocMove);
+      document.removeEventListener('pointerup',     onDocUp);
+      document.removeEventListener('pointercancel', cleanup);
+      dragEl = null; isDragging = false; activePointerId = null;
     }
 
-    function onDown(e) {
-      if (e.target.closest('.acc-badge,.acc-badges-group,.btn-add')) return;
-      const bubble = e.target.closest('[data-id],[data-noteidx]');
-      if (!bubble) return;
-      dragEl = bubble;
-      startX = e.clientX; startY = e.clientY;
-      const r = bubble.getBoundingClientRect();
-      offsetX = e.clientX - r.left;
-      offsetY = e.clientY - r.top;
-      bubble.setPointerCapture(e.pointerId);
-    }
-
-    function onMove(e) {
-      if (!dragEl) return;
+    function onDocMove(e) {
+      if (!dragEl || e.pointerId !== activePointerId) return;
       const dx = e.clientX - startX, dy = e.clientY - startY;
       const dist = Math.sqrt(dx*dx + dy*dy);
-      if (!isDragging && dist < 10) return;
+      if (!isDragging && dist < 12) return;
       e.preventDefault();
 
       if (!isDragging) {
-        isDragging = true;
+        isDragging  = true;
+        wasDragging = true;
         const r = dragEl.getBoundingClientRect();
-        // Placeholder invisible à la place de dragEl
         placeholder = document.createElement('div');
-        placeholder.style.cssText = `display:inline-block;width:${r.width}px;height:${r.height}px;flex-shrink:0;`;
+        placeholder.style.cssText = `display:inline-flex;width:${r.width}px;height:${r.height}px;flex-shrink:0;opacity:0;`;
         dragEl.parentNode.insertBefore(placeholder, dragEl);
         dragEl.style.display = 'none';
-        // Clone flottant
         clone = dragEl.cloneNode(true);
         clone.querySelectorAll('.acc-badge,.acc-badges-group').forEach(b => b.remove());
         clone.style.cssText = `position:fixed;z-index:9999;pointer-events:none;
-          opacity:0.85;left:${r.left}px;top:${r.top}px;
-          width:${r.width}px;margin:0;`;
+          opacity:0.85;left:${r.left}px;top:${r.top}px;width:${r.width}px;margin:0;`;
         document.body.appendChild(clone);
       }
 
       clone.style.left = (e.clientX - offsetX) + 'px';
       clone.style.top  = (e.clientY - offsetY) + 'px';
 
-      // Déplacer le placeholder pour indiquer l'emplacement d'insertion
       const cx = e.clientX;
       let inserted = false;
       for (const sib of getSiblings()) {
@@ -1082,31 +1101,40 @@ function initAccueilDragDrop(el) {
       if (!inserted) row.appendChild(placeholder);
     }
 
-    function onUp(e) {
-      if (!dragEl) return;
+    function onDocUp(e) {
+      if (!dragEl || e.pointerId !== activePointerId) return;
       if (isDragging && placeholder) {
-        // Insérer l'élément réel à la place du placeholder
         placeholder.parentNode.insertBefore(dragEl, placeholder);
         dragEl.style.display = '';
       }
       cleanup();
     }
 
-    row.addEventListener('pointerdown',   onDown);
-    row.addEventListener('pointermove',   onMove);
-    row.addEventListener('pointerup',     onUp);
-    row.addEventListener('pointercancel', cleanup);
+    row.addEventListener('pointerdown', e => {
+      if (e.target.closest('.acc-badge,.acc-badges-group,.btn-add')) return;
+      const bubble = e.target.closest('[data-id],[data-noteidx]');
+      if (!bubble) return;
+      dragEl = bubble;
+      startX = e.clientX; startY = e.clientY;
+      const r = bubble.getBoundingClientRect();
+      offsetX = e.clientX - r.left;
+      offsetY = e.clientY - r.top;
+      wasDragging = false;
+      activePointerId = e.pointerId;
+      document.addEventListener('pointermove',   onDocMove, { passive: false });
+      document.addEventListener('pointerup',     onDocUp);
+      document.addEventListener('pointercancel', cleanup);
+    });
+
     row.addEventListener('click', e => {
-      if (isDragging) e.stopImmediatePropagation();
+      if (wasDragging) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        wasDragging = false;
+      }
     }, true);
   });
 }
-
-/* ══════════════════════════════════════════
-   PICKER SHEET
-══════════════════════════════════════════ */
-let pickerSection  = null;
-let pickerSelected = new Set();
 
 function openPickerSheet(section) {
   pickerSection  = section;

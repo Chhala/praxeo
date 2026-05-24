@@ -140,7 +140,6 @@ body {
   height: 100dvh;
   background: var(--bg);
   overflow: hidden;
-  isolation: isolate;
   position: relative;
 }
 
@@ -156,7 +155,7 @@ body {
   flex-shrink: 0;
   background: var(--bg);
   position: relative;
-  z-index: 60;
+  z-index: 200;
 }
 
 .logo {
@@ -553,7 +552,8 @@ body {
 ══════════════════════════════════════════ */
 .sheet-overlay {
   position: fixed;
-  inset: 0;
+  left: 0; right: 0; bottom: 0;
+  top: var(--header-total-height, 0px);
   background: rgba(26,26,24,0.4);
   z-index: 50;
   opacity: 0;
@@ -1008,7 +1008,7 @@ body {
   gap: 10px;
   flex-shrink: 0;
   position: relative;
-  z-index: 52;
+  z-index: 199;
   background: var(--bg);
 }
 .meander-sep {
