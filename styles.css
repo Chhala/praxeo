@@ -503,22 +503,22 @@ body {
 /* Badge « - » suppression (long press) */
 .praxis-item .delete-badge {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 24px;
-  height: 24px;
+  top: -6px;
+  right: -6px;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
   background: #e63946;
   color: #fff;
   font-size: 16px;
   font-weight: 700;
-  line-height: 24px;
+  line-height: 19px;
   text-align: center;
   display: none;
   z-index: 5;
   cursor: pointer;
-  padding: 10px;
-  margin: -10px;
+  padding: 8px;
+  margin: -8px;
   box-sizing: content-box;
 }
 .praxis-item.wiggle .delete-badge { display: block; }
@@ -1065,10 +1065,10 @@ body {
 /* Badges édition sur praxis */
 .edit-badge {
   position: absolute;
-  top: -8px;
+  top: -6px;
   right: 20px;
-  width: 24px;
-  height: 24px;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
   background: var(--egee);
   color: #fff;
@@ -1077,18 +1077,18 @@ body {
   justify-content: center;
   z-index: 5;
   cursor: pointer;
-  padding: 10px;
-  margin: -10px;
+  padding: 8px;
+  margin: -8px;
   box-sizing: content-box;
 }
 
 /* Badge édition jauge long terme */
 .edit-gauge-badge {
   position: absolute;
-  top: -8px;
+  top: -6px;
   right: 16px;
-  width: 24px;
-  height: 24px;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
   background: var(--egee);
   color: #fff;
@@ -1097,8 +1097,8 @@ body {
   justify-content: center;
   z-index: 5;
   cursor: pointer;
-  padding: 10px;
-  margin: -10px;
+  padding: 8px;
+  margin: -8px;
   box-sizing: content-box;
 }
 
@@ -1210,17 +1210,17 @@ body {
 ══════════════════════════════════════════ */
 .acc-badge {
   position: absolute;
-  top: -8px;
-  width: 24px;
-  height: 24px;
+  top: -6px;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
   z-index: 10;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px;
-  margin: -10px;
+  padding: 8px;
+  margin: -8px;
   box-sizing: content-box;
 }
 
