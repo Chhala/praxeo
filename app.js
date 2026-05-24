@@ -361,72 +361,73 @@ function initPraxisDragDrop(el) {
   let dragId    = null;
   let clone     = null;
   let startX    = 0, startY = 0;
-  let overTrash = false;
+  let isDragging = false;
+  let overTrash  = false;
 
-  function trashRect() { return trash.getBoundingClientRect(); }
+  function cleanup() {
+    if (clone) { clone.remove(); clone = null; }
+    if (dragEl) { dragEl.style.opacity = ''; }
+    trash.classList.remove('trash-active');
+    dragEl = null; dragId = null; isDragging = false; overTrash = false;
+  }
 
   function onPointerDown(e) {
-    if (state.wiggleId) return; // Ne pas démarrer si en mode wiggle
-    const item = e.currentTarget;
-    // Délai court pour distinguer tap et drag
-    dragEl = item;
-    dragId = item.dataset.id;
+    // Ignorer badges et mode wiggle
+    if (state.wiggleId) return;
+    if (e.target.closest('.edit-badge,.delete-badge,.praxis-badges-group')) return;
+    dragEl = e.currentTarget;
+    dragId = dragEl.dataset.id;
     startX = e.clientX;
     startY = e.clientY;
+    dragEl.setPointerCapture(e.pointerId);
   }
 
   function onPointerMove(e) {
     if (!dragEl) return;
     const dx = e.clientX - startX, dy = e.clientY - startY;
-    if (!clone && Math.sqrt(dx*dx + dy*dy) < 8) return; // seuil de déclenchement
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (!isDragging && dist < 10) return;
 
-    if (!clone) {
-      // Créer le clone fantôme
+    if (!isDragging) {
+      isDragging = true;
+      const r = dragEl.getBoundingClientRect();
       clone = dragEl.cloneNode(true);
-      clone.style.cssText = `
-        position:fixed; z-index:9999; pointer-events:none;
-        opacity:0.75; transform:scale(1.05);
-        left:${dragEl.getBoundingClientRect().left}px;
-        top:${dragEl.getBoundingClientRect().top}px;
-        width:${dragEl.offsetWidth}px;
-        transition:none;
-      `;
+      clone.querySelectorAll('.edit-badge,.delete-badge,.praxis-badges-group').forEach(b => b.remove());
+      clone.style.cssText = `position:fixed;z-index:9999;pointer-events:none;
+        opacity:0.8;left:${r.left}px;top:${r.top}px;
+        width:${r.width}px;margin:0;`;
       document.body.appendChild(clone);
       dragEl.style.opacity = '0.3';
     }
 
-    clone.style.left = (dragEl.getBoundingClientRect().left + dx) + 'px';
-    clone.style.top  = (dragEl.getBoundingClientRect().top  + dy) + 'px';
+    clone.style.left = (startX - 20 + dx) + 'px';  // légèrement décalé
+    clone.style.top  = (startY - 15 + dy) + 'px';
 
-    // Détecter survol corbeille
-    const tr = trashRect();
-    const cx = e.clientX, cy = e.clientY;
-    const hit = cx >= tr.left && cx <= tr.right && cy >= tr.top && cy <= tr.bottom;
-    if (hit !== overTrash) {
-      overTrash = hit;
-      trash.classList.toggle('trash-active', hit);
-    }
+    const tr = trash.getBoundingClientRect();
+    const hit = e.clientX >= tr.left && e.clientX <= tr.right
+             && e.clientY >= tr.top  && e.clientY <= tr.bottom;
+    if (hit !== overTrash) { overTrash = hit; trash.classList.toggle('trash-active', hit); }
   }
 
   function onPointerUp(e) {
     if (!dragEl) return;
-    if (clone) {
-      clone.remove(); clone = null;
-      dragEl.style.opacity = '';
-      trash.classList.remove('trash-active');
-      if (overTrash && dragId) {
-        const p = state.praxis.find(x => x.id === dragId);
-        if (p) openConfirmDeleteSheet(dragId, p.label);
-      }
+    const wasActuallyDragging = isDragging;
+    if (wasActuallyDragging && overTrash && dragId) {
+      const p = state.praxis.find(x => x.id === dragId);
+      if (p) { cleanup(); openConfirmDeleteSheet(dragId, p.label); return; }
     }
-    dragEl = null; dragId = null; overTrash = false;
+    cleanup();
   }
 
   el.querySelectorAll('.praxis-item').forEach(item => {
-    item.addEventListener('pointerdown', onPointerDown);
-    item.addEventListener('pointermove', onPointerMove);
-    item.addEventListener('pointerup',   onPointerUp);
-    item.addEventListener('pointercancel', onPointerUp);
+    item.addEventListener('pointerdown',   onPointerDown, { passive: true });
+    item.addEventListener('pointermove',   onPointerMove, { passive: true });
+    item.addEventListener('pointerup',     onPointerUp);
+    item.addEventListener('pointercancel', cleanup);
+    // Bloquer le click si on était en drag
+    item.addEventListener('click', e => {
+      if (isDragging) { e.stopImmediatePropagation(); }
+    }, true);
   });
 }
 
@@ -911,18 +912,11 @@ function bindAccueilEvents(el) {
         }
       }
       else if (type === 'long') {
-        if (accueil.gaugeEditId === id) {
-          const p = state.praxis.find(x => x.id === id);
-          if (!p) return;
-          p.progress = ((p.progress||0) + 1) % 5;
-          renderAccueil(); return;
-        }
         const p = state.praxis.find(x => x.id === id);
         if (!p) return;
         const prevProgress = p.progress || 0;
         p.progress = prevProgress + 1;
         if (p.progress >= 4) {
-          // Explosion — undo possible avant seulement (on sauvegarde l'état pré-explosion)
           pushUndo({ type:'accueil_long_progress', id, prevProgress, exploded: true, page:'accueil' });
           saveState();
           const inner = b.querySelector('.bubble-long') || b;
@@ -962,9 +956,8 @@ function bindAccueilEvents(el) {
     badge.addEventListener('click', e => {
       e.stopPropagation();
       if (state.frozen) return;
-      accueil.gaugeEditId = badge.dataset.id;
       exitAccueilWiggle();
-      renderAccueil();
+      openGaugeSheet(badge.dataset.id);
     })
   );
 
@@ -1018,77 +1011,93 @@ function initAccueilDragDrop(el) {
     const row = el.querySelector('#'+rowId);
     if (!row) return;
 
-    let dragEl  = null;
-    let clone   = null;
-    let startX  = 0, startY = 0;
-    let offsetX = 0, offsetY = 0;
+    let dragEl     = null;
+    let clone      = null;
+    let placeholder = null;
+    let startX     = 0, startY = 0;
+    let offsetX    = 0, offsetY = 0;
+    let isDragging = false;
 
-    function getBubbles() {
-      return [...row.querySelectorAll('[data-id],[data-noteidx]')].filter(b => b !== dragEl);
+    function getSiblings() {
+      return [...row.querySelectorAll('[data-id],[data-noteidx]')].filter(b => b !== placeholder);
+    }
+
+    function cleanup() {
+      if (clone)       { clone.remove();       clone = null; }
+      if (placeholder) { placeholder.remove(); placeholder = null; }
+      if (dragEl)      { dragEl.style.display = ''; dragEl.style.opacity = ''; }
+      dragEl = null; isDragging = false;
     }
 
     function onDown(e) {
-      // Ignorer les badges
-      if (e.target.closest('.acc-badge')) return;
+      if (e.target.closest('.acc-badge,.acc-badges-group,.btn-add')) return;
       const bubble = e.target.closest('[data-id],[data-noteidx]');
       if (!bubble) return;
       dragEl = bubble;
-      startX = e.clientX;
-      startY = e.clientY;
+      startX = e.clientX; startY = e.clientY;
       const r = bubble.getBoundingClientRect();
       offsetX = e.clientX - r.left;
       offsetY = e.clientY - r.top;
+      bubble.setPointerCapture(e.pointerId);
     }
 
     function onMove(e) {
       if (!dragEl) return;
       const dx = e.clientX - startX, dy = e.clientY - startY;
-      if (!clone && Math.sqrt(dx*dx + dy*dy) < 8) return;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (!isDragging && dist < 10) return;
 
-      if (!clone) {
-        clone = dragEl.cloneNode(true);
-        // Supprimer les badges éventuels dans le clone
-        clone.querySelectorAll('.acc-badge,.acc-badges-group').forEach(b => b.remove());
+      if (!isDragging) {
+        isDragging = true;
         const r = dragEl.getBoundingClientRect();
-        clone.style.cssText = `
-          position:fixed; z-index:9999; pointer-events:none;
-          opacity:0.75; transform:scale(1.06);
-          left:${r.left}px; top:${r.top}px;
-          width:${dragEl.offsetWidth}px;
-          transition:none;
-        `;
+        // Placeholder invisible à la place de dragEl
+        placeholder = document.createElement('div');
+        placeholder.style.cssText = `display:inline-block;width:${r.width}px;height:${r.height}px;flex-shrink:0;`;
+        dragEl.parentNode.insertBefore(placeholder, dragEl);
+        dragEl.style.display = 'none';
+        // Clone flottant
+        clone = dragEl.cloneNode(true);
+        clone.querySelectorAll('.acc-badge,.acc-badges-group').forEach(b => b.remove());
+        clone.style.cssText = `position:fixed;z-index:9999;pointer-events:none;
+          opacity:0.85;left:${r.left}px;top:${r.top}px;
+          width:${r.width}px;margin:0;`;
         document.body.appendChild(clone);
-        dragEl.style.opacity = '0.25';
       }
 
       clone.style.left = (e.clientX - offsetX) + 'px';
       clone.style.top  = (e.clientY - offsetY) + 'px';
 
-      // Trouver la bulle cible et réordonner visuellement
+      // Déplacer le placeholder pour indiquer l'emplacement d'insertion
       const cx = e.clientX;
       let inserted = false;
-      for (const sib of getBubbles()) {
+      for (const sib of getSiblings()) {
         const r = sib.getBoundingClientRect();
         if (cx < r.left + r.width / 2) {
-          row.insertBefore(dragEl, sib);
-          inserted = true;
-          break;
+          row.insertBefore(placeholder, sib);
+          inserted = true; break;
         }
       }
-      if (!inserted) row.appendChild(dragEl);
+      if (!inserted) row.appendChild(placeholder);
     }
 
-    function onUp() {
+    function onUp(e) {
       if (!dragEl) return;
-      if (clone) { clone.remove(); clone = null; }
-      dragEl.style.opacity = '';
-      dragEl = null;
+      if (isDragging && placeholder) {
+        // Insérer l'élément réel à la place du placeholder
+        placeholder.parentNode.insertBefore(dragEl, placeholder);
+        dragEl.style.display = '';
+      }
+      cleanup();
     }
 
-    row.addEventListener('pointerdown',   onDown);
-    row.addEventListener('pointermove',   onMove);
+    row.addEventListener('pointerdown',   onDown, { passive: true });
+    row.addEventListener('pointermove',   onMove, { passive: true });
     row.addEventListener('pointerup',     onUp);
-    row.addEventListener('pointercancel', onUp);
+    row.addEventListener('pointercancel', cleanup);
+    // Bloquer click si drag en cours
+    row.addEventListener('click', e => {
+      if (isDragging) e.stopImmediatePropagation();
+    }, true);
   });
 }
 
@@ -1166,6 +1175,84 @@ function validatePicker() {
   });
   closeSheet();
   renderAccueil();
+}
+
+/* ══════════════════════════════════════════
+   GAUGE SHEET (édition progression long terme)
+══════════════════════════════════════════ */
+function openGaugeSheet(id) {
+  const p = state.praxis.find(x => x.id === id);
+  if (!p) return;
+
+  const overlay = document.getElementById('sheetOverlay');
+  const sheet   = getSheet();
+  const cur     = p.progress || 0;
+
+  // 4 crans = 100% (chaque cran = 25%)
+  const steps = [0, 1, 2, 3, 4];
+
+  sheet.innerHTML = `
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">${p.label}</div>
+    <div class="gauge-sheet-track">
+      <div class="gauge-sheet-fill" id="gaugeSheetFill"
+           style="width:${cur * 25}%; background:${p.color};"></div>
+    </div>
+    <div class="gauge-sheet-steps">
+      ${steps.map(s => `
+        <button class="gauge-step-btn ${cur === s ? 'selected' : ''}"
+                data-step="${s}" style="--gc:${p.color};">
+          ${s === 0 ? '0%' : (s * 25) + '%'}
+        </button>`).join('')}
+    </div>
+    <div class="sheet-actions" style="margin-top:20px;">
+      <button class="btn-sheet btn-cancel" id="btnGaugeCancel">Annuler</button>
+      <button class="btn-sheet btn-create-action" id="btnGaugeSave">Valider</button>
+    </div>
+  `;
+
+  let selected = cur;
+
+  const fill = sheet.querySelector('#gaugeSheetFill');
+  sheet.querySelectorAll('.gauge-step-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selected = parseInt(btn.dataset.step);
+      sheet.querySelectorAll('.gauge-step-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      fill.style.width = (selected * 25) + '%';
+    });
+  });
+
+  sheet.querySelector('#btnGaugeCancel').addEventListener('click', closeSheet);
+  sheet.querySelector('#btnGaugeSave').addEventListener('click', () => {
+    const prevProgress = p.progress || 0;
+    if (selected !== prevProgress) {
+      pushUndo({ type:'accueil_long_progress', id, prevProgress, exploded: false, page:'accueil' });
+      p.progress = selected;
+      if (selected >= 4) {
+        closeSheet();
+        const wrap = document.querySelector(`.acc-bubble-wrap[data-id="${id}"]`);
+        const inner = wrap ? wrap.querySelector('.bubble-long') : null;
+        const target = inner || wrap;
+        if (target) {
+          p.active = false; p.progress = 0;
+          accueil.longsRemoved[id] = true;
+          explodeBubble(target, () => { saveAccueil(); saveState(); renderAccueil(); });
+        } else {
+          p.active = false; p.progress = 0;
+          accueil.longsRemoved[id] = true;
+          saveAccueil(); saveState(); renderAccueil();
+        }
+        return;
+      }
+      saveState();
+    }
+    closeSheet();
+    renderAccueil();
+  });
+
+  overlay.classList.add('open');
+  sheet.classList.add('open');
 }
 
 /* ══════════════════════════════════════════

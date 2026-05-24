@@ -153,6 +153,8 @@ body {
   padding-right: 20px;
   flex-shrink: 0;
   background: var(--bg);
+  position: relative;
+  z-index: 60;
 }
 
 .logo {
@@ -537,7 +539,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
 }
 @keyframes wiggle {
   0%, 100% { transform: rotate(-2deg); }
@@ -550,22 +551,14 @@ body {
 ══════════════════════════════════════════ */
 .sheet-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(26,26,24,0.4);
   z-index: 50;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
-  /* La zone de la caméra reste claire : le fond du header est opaque par-dessus */
 }
-/* Le header reste toujours opaque au-dessus de l'overlay */
-.header {
-  z-index: 52;
-  position: relative;
-}
+
 .sheet-overlay.open {
   opacity: 1;
   pointer-events: all;
@@ -1345,27 +1338,7 @@ body {
 /* ══════════════════════════════════════════
    BADGE ACCUEIL — même taille que Praxis
 ══════════════════════════════════════════ */
-.acc-badge {
-  position: absolute;
-  top: -8px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 24px;
-  text-align: center;
-  z-index: 10;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px;
-  margin: -10px;
-  box-sizing: content-box;
-}
-.acc-badge-delete { right: -8px; background: #e63946; color: #fff; }
-.acc-badge-edit   { background: var(--egee); color: #fff; font-size: 16px; }
+/* acc-badge — défini plus haut */
 
 /* Badges groupés côte à côte pour long terme */
 .acc-badges-group {
@@ -1379,10 +1352,6 @@ body {
 .acc-badges-group .acc-badge {
   position: static;
   top: auto; right: auto;
-  /* Même taille et zone de tap que les autres badges */
-  padding: 6px;
-  margin: 0;
-  box-sizing: content-box;
 }
 
 /* Wrapper long terme */
@@ -1527,4 +1496,45 @@ body {
 }
 .nav-undo.undo-flash svg {
   animation: undoFlash 0.45s ease-out forwards;
+}
+
+/* ══════════════════════════════════════════
+   GAUGE SHEET
+══════════════════════════════════════════ */
+.gauge-sheet-track {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 4px 0 20px;
+}
+.gauge-sheet-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.25s ease;
+}
+.gauge-sheet-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+.gauge-step-btn {
+  flex: 1;
+  padding: 10px 4px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  font-family: var(--font-serif);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.gauge-step-btn.selected {
+  background: var(--gc, var(--egee));
+  color: #fff;
+  border-color: var(--gc, var(--egee));
 }
