@@ -18,8 +18,10 @@
   --egee:   #005A92;
   --or:     #D4AF37;
   --olive:  #6E7A68;
-  --fresco: #3B596A;
+  --bordeaux: #5D1935;
+  --ocre:   #E2953B;
   --sienne: #A66E4E;
+  --fresco: #3B596A;
 
   --radius-encart: 16px;
   --radius-bubble: 20px;
@@ -549,12 +551,21 @@ body {
 ══════════════════════════════════════════ */
 .sheet-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(26,26,24,0.4);
   z-index: 50;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
+  /* La zone de la caméra reste claire : le fond du header est opaque par-dessus */
+}
+/* Le header reste toujours opaque au-dessus de l'overlay */
+.header {
+  z-index: 52;
+  position: relative;
 }
 .sheet-overlay.open {
   opacity: 1;
@@ -1002,6 +1013,9 @@ body {
   padding: 0 20px 8px;
   gap: 10px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 52;
+  background: var(--bg);
 }
 .meander-sep {
   display: block;
@@ -1059,13 +1073,13 @@ body {
   position: absolute;
   top: -6px;
   right: 20px;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: var(--egee);
   color: #fff;
-  font-size: 12px;
-  line-height: 20px;
+  font-size: 18px;
+  line-height: 28px;
   text-align: center;
   display: flex;
   align-items: center;
@@ -1073,8 +1087,8 @@ body {
   z-index: 5;
   cursor: pointer;
   /* Zone de tap élargie */
-  padding: 6px;
-  margin: -6px;
+  padding: 10px;
+  margin: -10px;
   box-sizing: content-box;
 }
 
@@ -1235,7 +1249,7 @@ body {
   left: -7px;
   background: var(--egee);
   color: #fff;
-  font-size: 11px;
+  font-size: 18px;
 }
 
 /* Animation wiggle sur les bulles de l'accueil */
@@ -1334,24 +1348,24 @@ body {
 .acc-badge {
   position: absolute;
   top: -6px;
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 700;
-  line-height: 18px;
+  line-height: 28px;
   text-align: center;
   z-index: 10;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
-  margin: -6px;
+  padding: 10px;
+  margin: -10px;
   box-sizing: content-box;
 }
 .acc-badge-delete { right: -6px; background: #e63946; color: #fff; }
-.acc-badge-edit   { background: var(--egee); color: #fff; font-size: 10px; }
+.acc-badge-edit   { background: var(--egee); color: #fff; font-size: 18px; }
 
 /* Badges groupés côte à côte pour long terme */
 .acc-badges-group {
@@ -1500,7 +1514,7 @@ body {
 .color-days-row .day-btn-sm {
   width: 26px;
   height: 26px;
-  font-size: 7.5px;
+  font-size: 10px;
 }
 
 /* ══════════════════════════════════════════

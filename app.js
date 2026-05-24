@@ -3,7 +3,7 @@
 ═══════════════════════════════════════ */
 'use strict';
 
-const COLORS      = ['#005A92','#D4AF37','#6E7A68','#3B596A','#A66E4E','#1a1a18'];
+const COLORS      = ['#005A92','#5D1935','#D4AF37','#E2953B','#6E7A68','#A66E4E','#1A1A18'];
 const DAY_NAMES   = ['L','M','M','J','V','S','D'];
 const TYPES       = ['routine','tache','long'];
 const TYPE_LABELS = { routine:'Routines', tache:'Tâches', long:'Long terme' };
@@ -28,23 +28,13 @@ let state = {
    DONNÉES
 ══════════════════════════════════════════ */
 const PRAXIS_DATA = [
-  { id:'r03', type:'routine', label:'SPORT',              color:'#A66E4E', active:false, days:[1,2,3,4,5] },
-  { id:'r04', type:'routine', label:'FAIRE LE LIT',       color:'#005A92', active:true,  days:[1,2,3,4,5,6,7] },
-  { id:'r05', type:'routine', label:'LIRE 10 PAGES',      color:'#D4AF37', active:true,  days:[1,2,3,4,5] },
-  { id:'r10', type:'routine', label:'SCROLLER MOINS',     color:'#D4AF37', active:false, days:[1,2,3,4,5] },
-  { id:'r11', type:'routine', label:'MÉDITER',            color:'#6E7A68', active:true,  days:[1,2,3,4,5] },
-  { id:'t01', type:'tache',   label:'SÉRIE TV',           color:'#3B596A', active:false },
-  { id:'t02', type:'tache',   label:'FILM',               color:'#A66E4E', active:false },
-  { id:'t03', type:'tache',   label:'RANGER',             color:'#005A92', active:true  },
-  { id:'t04', type:'tache',   label:'NETTOYER',           color:'#D4AF37', active:false },
-  { id:'t05', type:'tache',   label:'ÉPILATION',          color:'#6E7A68', active:false },
-  { id:'t06', type:'tache',   label:'COURSES',            color:'#3B596A', active:true  },
-  { id:'t07', type:'tache',   label:'LAVER LE SOL',       color:'#A66E4E', active:false },
-  { id:'t08', type:'tache',   label:'FAIRE LA POUSSIÈRE', color:'#005A92', active:false },
-  { id:'t09', type:'tache',   label:'LESSIVE',            color:'#D4AF37', active:true  },
-  { id:'t10', type:'tache',   label:'RANGER LE LINGE',    color:'#6E7A68', active:false },
-  { id:'l03', type:'long',    label:'LIRE UN LIVRE',      color:'#005A92', active:false, progress:0 }
+  { id:'r01', type:'routine', label:'FAIRE LE LIT', color:randColor(), active:true,  days:[1,2,3,4,5,6,7] },
+  { id:'t01', type:'tache',   label:'COURSES',      color:randColor(), active:true  },
+  { id:'t02', type:'tache',   label:'SÉRIE TV',     color:randColor(), active:true  },
+  { id:'l01', type:'long',    label:'LIRE UN LIVRE',color:randColor(), active:true,  progress:1 },
 ];
+
+function randColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
 
 /* ── Persistance localStorage ── */
 const STORAGE_KEY = 'praxeo_state_v1';
@@ -325,8 +315,7 @@ function renderPraxisItem(p) {
 
   const badges = wiggling
     ? `<div class="praxis-badges-group">
-         <div class="edit-badge"   data-id="${p.id}">✎</div>
-         <div class="delete-badge" data-id="${p.id}">−</div>
+         <div class="edit-badge" data-id="${p.id}">✎</div>
        </div>`
     : '';
 
@@ -786,7 +775,6 @@ function renderAccueilBubble(p, type) {
     const badges = wiggling ? `
       <div class="acc-badges-group">
         <div class="acc-badge acc-badge-edit" data-id="${p.id}">✎</div>
-        <div class="acc-badge acc-badge-delete" data-id="${p.id}" data-type="${type}">−</div>
       </div>` : '';
     return `<div class="acc-bubble-wrap${wiggling?' acc-wiggle':''}${gaugeEdit?' gauge-editing-wrap':''}"
                data-id="${p.id}" data-type="long" draggable="true">
@@ -1360,7 +1348,7 @@ function renderStats() {
   const routines=state.praxis.filter(p=>p.type==='routine'&&p.active);
   const praxisStats=routines
     .map(p=>({...p,rate:0,streak:0}))
-    .sort((a,b)=>b.streak-a.streak);
+    .sort((a,b)=>a.label.localeCompare(b.label,'fr',{sensitivity:'base'}));
 
   const opacity=record>0?Math.min(0.25+streak/record*0.75,1).toFixed(2):'0.25';
 
