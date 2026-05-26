@@ -372,6 +372,9 @@ function deletePraxis(id) {
 }
 
 /* ── Drag & drop vers corbeille ── */
+// Flag global pour éviter l'accumulation de listeners entre renders
+let _praxisDndActive = false;
+
 function initPraxisDragDrop(el) {
   const trash = el.querySelector('#btnTrash');
   if (!trash) return;
@@ -386,11 +389,12 @@ function initPraxisDragDrop(el) {
   let activePointerId = null;
 
   function cleanup() {
+    _praxisDndActive = false;
     if (clone) { clone.remove(); clone = null; }
     if (dragEl) { dragEl.style.opacity = ''; }
     trash.classList.remove('trash-active');
-    document.removeEventListener('pointermove', onDocMove);
-    document.removeEventListener('pointerup',   onDocUp);
+    document.removeEventListener('pointermove',   onDocMove);
+    document.removeEventListener('pointerup',     onDocUp);
     document.removeEventListener('pointercancel', onDocCancel);
     dragEl = null; dragId = null; isDragging = false; overTrash = false;
     activePointerId = null;
@@ -399,8 +403,7 @@ function initPraxisDragDrop(el) {
   function onDocMove(e) {
     if (!dragEl || e.pointerId !== activePointerId) return;
     const dx = e.clientX - startX, dy = e.clientY - startY;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    if (!isDragging && dist < 12) return;
+    if (!isDragging && Math.sqrt(dx*dx + dy*dy) < 12) return;
     e.preventDefault();
 
     if (!isDragging) {
@@ -426,9 +429,13 @@ function initPraxisDragDrop(el) {
 
   function onDocUp(e) {
     if (!dragEl || e.pointerId !== activePointerId) return;
-    if (isDragging && overTrash && dragId) {
-      const p = state.praxis.find(x => x.id === dragId);
-      if (p) { cleanup(); openConfirmDeleteSheet(dragId, p.label); return; }
+    if (isDragging && overTrash) {
+      // Sauvegarder id et label AVANT cleanup (qui remet dragId à null)
+      const savedId    = dragId;
+      const savedLabel = (state.praxis.find(x => x.id === savedId) || {}).label;
+      cleanup();
+      if (savedId && savedLabel) openConfirmDeleteSheet(savedId, savedLabel);
+      return;
     }
     cleanup();
   }
@@ -440,8 +447,10 @@ function initPraxisDragDrop(el) {
 
   el.querySelectorAll('.praxis-item').forEach(item => {
     item.addEventListener('pointerdown', e => {
+      if (_praxisDndActive) return; // Évite accumulation si render entre-deux
       if (state.wiggleId) return;
       if (e.target.closest('.edit-badge,.delete-badge,.praxis-badges-group')) return;
+      _praxisDndActive = true;
       dragEl = item;
       dragId = item.dataset.id;
       startX = e.clientX;
@@ -1082,7 +1091,7 @@ function initAccueilDragDrop(el) {
       document.removeEventListener('pointermove',   onDocMove);
       document.removeEventListener('pointerup',     onDocUp);
       document.removeEventListener('pointercancel', cleanup);
-      dragEl = null; isDragging = false; activePointerId = null;
+      dragEl = null; isDragging = false; wasDragging = false; activePointerId = null;
     }
 
     function onDocMove(e) {
@@ -1132,6 +1141,7 @@ function initAccueilDragDrop(el) {
     }
 
     row.addEventListener('pointerdown', e => {
+      if (isDragging) return; // déjà en cours
       if (e.target.closest('.acc-badge,.acc-badges-group,.btn-add')) return;
       const bubble = e.target.closest('[data-id],[data-noteidx]');
       if (!bubble) return;
