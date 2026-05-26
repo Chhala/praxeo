@@ -67,22 +67,24 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
     const snap = JSON.parse(raw);
+    // Toujours restaurer statsHistory et les métadonnées, quelle que soit l'état de praxis
+    state.frozen       = snap.frozen       || false;
+    state.frozenDays   = snap.frozenDays   || [];
+    state.noteHistory  = snap.noteHistory  || [];
+    state.statsHistory = snap.statsHistory || {};
+    state.statsRecord  = snap.statsRecord  || 0;
     if (snap.praxis && snap.praxis.length) {
-      state.praxis       = snap.praxis;
-      state.frozen       = snap.frozen       || false;
-      state.frozenDays   = snap.frozenDays   || [];
-      state.noteHistory  = snap.noteHistory  || [];
-      state.statsHistory = snap.statsHistory || {};
-      state.statsRecord  = snap.statsRecord  || 0;
+      state.praxis = snap.praxis;
       return true;
     }
+    return false; // praxis vide → sera réinitialisé, mais statsHistory est préservé
   } catch(e) { /* données corrompues — silencieux */ }
   return false;
 }
 
 function loadPraxis() {
   if (!loadState()) {
-    // Première ouverture : charger les données par défaut
+    // Première ouverture ou praxis vide : charger les données par défaut
     state.praxis = PRAXIS_DATA.map(p => ({ ...p, days: p.days ? [...p.days] : undefined }));
     saveState();
   }
@@ -146,6 +148,150 @@ function initNav() {
   );
   document.getElementById('undoBtn').addEventListener('click', doUndo);
   document.getElementById('menuBtn').addEventListener('click', openMenu);
+  initSwipeNav();
+}
+
+/* ══════════════════════════════════════════
+   SWIPE NAVIGATION
+══════════════════════════════════════════ */
+function initSwipeNav() {
+  const PAGES = ['accueil','praxis','stats'];
+  const THRESHOLD = 60; // px minimum pour déclencher la navigation
+  const PAGES_EL  = {
+    accueil: document.getElementById('page-accueil'),
+    praxis:  document.getElementById('page-praxis'),
+    stats:   document.getElementById('page-stats'),
+  };
+
+  let swipeStartX = 0, swipeStartY = 0;
+  let swipeActive = false;
+  let swipeTranslating = false;
+  let swipePointerId = null;
+
+  // Zones autorisées pour le swipe selon la page
+  function isSwipeZone(e, page) {
+    // Stats : partout
+    if (page === 'stats') return true;
+    // Accueil : sous le bloc-notes (rowNote)
+    if (page === 'accueil') {
+      const rowNote = document.getElementById('rowNote');
+      if (rowNote) {
+        const r = rowNote.getBoundingClientRect();
+        if (e.clientY > r.bottom) return true;
+      }
+      return false;
+    }
+    // Praxis : sous la liste de praxis
+    if (page === 'praxis') {
+      const list = document.querySelector('.praxis-list');
+      if (list) {
+        const r = list.getBoundingClientRect();
+        if (e.clientY > r.bottom) return true;
+      }
+      return false;
+    }
+    return false;
+  }
+
+  function getCurrentPageEl() {
+    return PAGES_EL[state.currentPage];
+  }
+
+  function getAdjacentPage(dir) {
+    // dir: -1 = vers gauche (page suivante), +1 = vers droite (page précédente)
+    const idx = PAGES.indexOf(state.currentPage);
+    const next = idx - dir;
+    if (next < 0 || next >= PAGES.length) return null;
+    return PAGES[next];
+  }
+
+  document.addEventListener('pointerdown', e => {
+    if (_accueilDndActive || _praxisDndActive) return;
+    if (!isSwipeZone(e, state.currentPage)) return;
+    if (state.sheet && state.sheet.open) return;
+    swipeStartX = e.clientX;
+    swipeStartY = e.clientY;
+    swipeActive = true;
+    swipeTranslating = false;
+    swipePointerId = e.pointerId;
+  });
+
+  document.addEventListener('pointermove', e => {
+    if (!swipeActive || e.pointerId !== swipePointerId) return;
+    const dx = e.clientX - swipeStartX;
+    const dy = e.clientY - swipeStartY;
+    // Annuler si le mouvement est plus vertical qu'horizontal
+    if (!swipeTranslating && Math.abs(dy) > Math.abs(dx)) { swipeActive = false; return; }
+    if (Math.abs(dx) < 8) return;
+    e.preventDefault();
+    swipeTranslating = true;
+
+    const curEl  = getCurrentPageEl();
+    const dir    = dx > 0 ? 1 : -1; // +1 = droite, -1 = gauche
+    const adjPage = getAdjacentPage(dir);
+    if (!adjPage) return;
+
+    const adjEl = PAGES_EL[adjPage];
+    const W = window.innerWidth;
+
+    // Afficher la page adjacente en translation
+    adjEl.classList.remove('hidden');
+    adjEl.style.transition = 'none';
+    adjEl.style.transform  = `translateX(${dir > 0 ? -W : W}px)`;
+
+    curEl.style.transition  = 'none';
+    curEl.style.transform   = `translateX(${dx}px)`;
+    adjEl.style.transform   = `translateX(${(dir > 0 ? -W : W) + dx}px)`;
+  }, { passive: false });
+
+  document.addEventListener('pointerup', e => {
+    if (!swipeActive || e.pointerId !== swipePointerId) return;
+    const dx = e.clientX - swipeStartX;
+    swipeActive = false;
+
+    const curEl = getCurrentPageEl();
+    const dir   = dx > 0 ? 1 : -1;
+    const adjPage = getAdjacentPage(dir);
+
+    if (!swipeTranslating || !adjPage || Math.abs(dx) < THRESHOLD) {
+      // Annuler : revenir en place
+      curEl.style.transition = 'transform 0.25s ease';
+      curEl.style.transform  = 'translateX(0)';
+      if (adjPage) {
+        const adjEl = PAGES_EL[adjPage];
+        adjEl.style.transition = 'transform 0.25s ease';
+        const W = window.innerWidth;
+        adjEl.style.transform  = `translateX(${dir > 0 ? -W : W}px)`;
+        setTimeout(() => { adjEl.classList.add('hidden'); adjEl.style.transform = ''; adjEl.style.transition = ''; }, 260);
+      }
+      curEl.style.transform = 'translateX(0)';
+      setTimeout(() => { curEl.style.transition = ''; curEl.style.transform = ''; }, 260);
+      swipeTranslating = false;
+      return;
+    }
+
+    // Confirmer la navigation
+    const adjEl = PAGES_EL[adjPage];
+    const W = window.innerWidth;
+    curEl.style.transition  = 'transform 0.25s ease';
+    adjEl.style.transition  = 'transform 0.25s ease';
+    curEl.style.transform   = `translateX(${dir > 0 ? W : -W}px)`;
+    adjEl.style.transform   = 'translateX(0)';
+    setTimeout(() => {
+      curEl.style.transition = ''; curEl.style.transform = '';
+      adjEl.style.transition = ''; adjEl.style.transform = '';
+      curEl.classList.add('hidden');
+      navigate(adjPage);
+    }, 260);
+    swipeTranslating = false;
+  });
+
+  document.addEventListener('pointercancel', e => {
+    if (e.pointerId !== swipePointerId) return;
+    swipeActive = false; swipeTranslating = false;
+    const curEl = getCurrentPageEl();
+    curEl.style.transition = ''; curEl.style.transform = '';
+  });
 }
 
 /* ══════════════════════════════════════════
@@ -368,6 +514,8 @@ function deletePraxis(id) {
   pushUndo({ type:'delete', praxis:{ ...removed, days: removed.days ? [...removed.days] : undefined }, idx });
   state.praxis.splice(idx, 1);
   state.wiggleId = null;
+  // Si c'était une routine active, recalculer les stats du jour
+  if (removed.type === 'routine' && removed.active) recordRoutineDone();
   renderPraxis();
 }
 
@@ -1049,6 +1197,7 @@ function removeFromAccueil(type, id, nidx) {
   if (type === 'routine') {
     pushUndo({ type:'accueil_skip', id, page:'accueil' });
     accueil.routinesSkipped[id] = true;
+    recordRoutineDone(); // recalcule total après masquage de la routine
   } else if (type === 'tache') {
     pushUndo({ type:'accueil_tache_remove', id, wasDone: !!accueil.tachesDone[id], page:'accueil' });
     accueil.tachesRemoved[id] = true;
@@ -1066,6 +1215,8 @@ function removeFromAccueil(type, id, nidx) {
 }
 
 /* ── Drag & drop réordonnage accueil ── */
+let _accueilDndActive = false;
+
 function initAccueilDragDrop(el) {
   ['rowRoutine','rowTache','rowLong','rowNote'].forEach(rowId => {
     const row = el.querySelector('#'+rowId);
@@ -1091,7 +1242,9 @@ function initAccueilDragDrop(el) {
       document.removeEventListener('pointermove',   onDocMove);
       document.removeEventListener('pointerup',     onDocUp);
       document.removeEventListener('pointercancel', cleanup);
-      dragEl = null; isDragging = false; wasDragging = false; activePointerId = null;
+      _accueilDndActive = false;
+      dragEl = null; isDragging = false; activePointerId = null;
+      // wasDragging reste true jusqu'au prochain click pour le bloquer
     }
 
     function onDocMove(e) {
@@ -1141,10 +1294,11 @@ function initAccueilDragDrop(el) {
     }
 
     row.addEventListener('pointerdown', e => {
-      if (isDragging) return; // déjà en cours
+      if (_accueilDndActive) return; // déjà en cours
       if (e.target.closest('.acc-badge,.acc-badges-group,.btn-add')) return;
       const bubble = e.target.closest('[data-id],[data-noteidx]');
       if (!bubble) return;
+      _accueilDndActive = true;
       dragEl = bubble;
       startX = e.clientX; startY = e.clientY;
       const r = bubble.getBoundingClientRect();
@@ -1165,6 +1319,11 @@ function initAccueilDragDrop(el) {
       }
     }, true);
   });
+
+  // Bloquer tout click sur la page accueil si un drag vient de se terminer
+  el.addEventListener('click', e => {
+    if (_accueilDndActive) { e.stopImmediatePropagation(); e.preventDefault(); }
+  }, true);
 }
 
 function openPickerSheet(section) {
