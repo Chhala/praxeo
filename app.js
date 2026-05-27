@@ -171,7 +171,15 @@ function initSwipeNav() {
 
   function isSwipeZone(e) {
     const page = state.currentPage;
-    if (page === 'stats') return true;
+    if (page === 'stats') {
+      // Bande fixe en bas : 80px au-dessus de la navbar
+      const navbar = document.querySelector('.navbar');
+      if (navbar) {
+        const navTop = navbar.getBoundingClientRect().top;
+        return e.clientY > navTop - 80;
+      }
+      return true;
+    }
     if (page === 'accueil') {
       const row = document.getElementById('rowNote');
       return row ? e.clientY > row.getBoundingClientRect().bottom : false;
