@@ -155,144 +155,130 @@ function initNav() {
    SWIPE NAVIGATION
 ══════════════════════════════════════════ */
 function initSwipeNav() {
-  const PAGES = ['accueil','praxis','stats'];
-  const THRESHOLD = 60; // px minimum pour déclencher la navigation
-  const PAGES_EL  = {
+  const PAGES     = ['accueil','praxis','stats'];
+  const THRESHOLD = 60;
+  const RENDER    = { accueil: renderAccueil, praxis: renderPraxis, stats: renderStats };
+  const EL = () => ({
     accueil: document.getElementById('page-accueil'),
     praxis:  document.getElementById('page-praxis'),
     stats:   document.getElementById('page-stats'),
-  };
+  });
 
-  let swipeStartX = 0, swipeStartY = 0;
-  let swipeActive = false;
-  let swipeTranslating = false;
-  let swipePointerId = null;
+  let startX = 0, startY = 0;
+  let active = false, moved = false;
+  let dir = 0, adjPage = null, origPage = null;
+  let pid = null;
 
-  // Zones autorisées pour le swipe selon la page
-  function isSwipeZone(e, page) {
-    // Stats : partout
+  function isSwipeZone(e) {
+    const page = state.currentPage;
     if (page === 'stats') return true;
-    // Accueil : sous le bloc-notes (rowNote)
     if (page === 'accueil') {
-      const rowNote = document.getElementById('rowNote');
-      if (rowNote) {
-        const r = rowNote.getBoundingClientRect();
-        if (e.clientY > r.bottom) return true;
-      }
-      return false;
+      const row = document.getElementById('rowNote');
+      return row ? e.clientY > row.getBoundingClientRect().bottom : false;
     }
-    // Praxis : sous la liste de praxis
     if (page === 'praxis') {
-      const list = document.querySelector('.praxis-list');
-      if (list) {
-        const r = list.getBoundingClientRect();
-        if (e.clientY > r.bottom) return true;
-      }
-      return false;
+      const enc = document.querySelector('.praxis-encart');
+      return enc ? e.clientY > enc.getBoundingClientRect().bottom : false;
     }
     return false;
   }
 
-  function getCurrentPageEl() {
-    return PAGES_EL[state.currentPage];
-  }
-
-  function getAdjacentPage(dir) {
-    // dir: -1 = vers gauche (page suivante), +1 = vers droite (page précédente)
-    const idx = PAGES.indexOf(state.currentPage);
-    const next = idx - dir;
-    if (next < 0 || next >= PAGES.length) return null;
-    return PAGES[next];
+  function cancel() {
+    if (!moved || !adjPage) { active = false; moved = false; pid = null; return; }
+    const els = EL();
+    const oEl = els[origPage], aEl = els[adjPage];
+    const W   = window.innerWidth;
+    oEl.style.transition = 'transform 0.22s ease';
+    aEl.style.transition = 'transform 0.22s ease';
+    oEl.style.transform  = 'translateX(0)';
+    aEl.style.transform  = `translateX(${dir > 0 ? -W : W}px)`;
+    setTimeout(() => {
+      aEl.classList.add('hidden');
+      oEl.style.cssText = ''; aEl.style.cssText = '';
+    }, 230);
+    active = false; moved = false; adjPage = null; origPage = null; pid = null;
   }
 
   document.addEventListener('pointerdown', e => {
     if (_accueilDndActive || _praxisDndActive) return;
-    if (!isSwipeZone(e, state.currentPage)) return;
     if (state.sheet && state.sheet.open) return;
-    swipeStartX = e.clientX;
-    swipeStartY = e.clientY;
-    swipeActive = true;
-    swipeTranslating = false;
-    swipePointerId = e.pointerId;
+    if (!isSwipeZone(e)) return;
+    startX = e.clientX; startY = e.clientY;
+    active = true; moved = false; pid = e.pointerId;
   });
 
   document.addEventListener('pointermove', e => {
-    if (!swipeActive || e.pointerId !== swipePointerId) return;
-    const dx = e.clientX - swipeStartX;
-    const dy = e.clientY - swipeStartY;
-    // Annuler si le mouvement est plus vertical qu'horizontal
-    if (!swipeTranslating && Math.abs(dy) > Math.abs(dx)) { swipeActive = false; return; }
-    if (Math.abs(dx) < 8) return;
+    if (!active || e.pointerId !== pid) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    if (!moved) {
+      if (Math.abs(dx) < 8) return;
+      if (Math.abs(dy) > Math.abs(dx)) { active = false; return; }
+      // Déterminer direction et page adjacente
+      dir      = dx > 0 ? 1 : -1;
+      const idx = PAGES.indexOf(state.currentPage);
+      const ni  = idx - dir;
+      if (ni < 0 || ni >= PAGES.length) { active = false; return; }
+      origPage = state.currentPage;
+      adjPage  = PAGES[ni];
+
+      // Pré-rendre la page adjacente (sans navigate, sans changer state.currentPage)
+      const aEl = EL()[adjPage];
+      RENDER[adjPage]();          // render le contenu
+      const W = window.innerWidth;
+      aEl.style.cssText = `transform:translateX(${dir > 0 ? -W : W}px);transition:none;`;
+      aEl.classList.remove('hidden');
+      EL()[origPage].style.cssText = 'transform:translateX(0);transition:none;';
+      moved = true;
+    }
+
     e.preventDefault();
-    swipeTranslating = true;
-
-    const curEl  = getCurrentPageEl();
-    const dir    = dx > 0 ? 1 : -1; // +1 = droite, -1 = gauche
-    const adjPage = getAdjacentPage(dir);
-    if (!adjPage) return;
-
-    const adjEl = PAGES_EL[adjPage];
-    const W = window.innerWidth;
-
-    // Afficher la page adjacente en translation
-    adjEl.classList.remove('hidden');
-    adjEl.style.transition = 'none';
-    adjEl.style.transform  = `translateX(${dir > 0 ? -W : W}px)`;
-
-    curEl.style.transition  = 'none';
-    curEl.style.transform   = `translateX(${dx}px)`;
-    adjEl.style.transform   = `translateX(${(dir > 0 ? -W : W) + dx}px)`;
+    const dx2 = e.clientX - startX;
+    const W   = window.innerWidth;
+    const els = EL();
+    els[origPage].style.transform = `translateX(${dx2}px)`;
+    els[adjPage].style.transform  = `translateX(${(dir > 0 ? -W : W) + dx2}px)`;
   }, { passive: false });
 
   document.addEventListener('pointerup', e => {
-    if (!swipeActive || e.pointerId !== swipePointerId) return;
-    const dx = e.clientX - swipeStartX;
-    swipeActive = false;
+    if (!active || e.pointerId !== pid) return;
+    const dx = e.clientX - startX;
 
-    const curEl = getCurrentPageEl();
-    const dir   = dx > 0 ? 1 : -1;
-    const adjPage = getAdjacentPage(dir);
-
-    if (!swipeTranslating || !adjPage || Math.abs(dx) < THRESHOLD) {
-      // Annuler : revenir en place
-      curEl.style.transition = 'transform 0.25s ease';
-      curEl.style.transform  = 'translateX(0)';
-      if (adjPage) {
-        const adjEl = PAGES_EL[adjPage];
-        adjEl.style.transition = 'transform 0.25s ease';
-        const W = window.innerWidth;
-        adjEl.style.transform  = `translateX(${dir > 0 ? -W : W}px)`;
-        setTimeout(() => { adjEl.classList.add('hidden'); adjEl.style.transform = ''; adjEl.style.transition = ''; }, 260);
-      }
-      curEl.style.transform = 'translateX(0)';
-      setTimeout(() => { curEl.style.transition = ''; curEl.style.transform = ''; }, 260);
-      swipeTranslating = false;
-      return;
-    }
+    if (!moved || !adjPage || Math.abs(dx) < THRESHOLD) { cancel(); return; }
 
     // Confirmer la navigation
-    const adjEl = PAGES_EL[adjPage];
-    const W = window.innerWidth;
-    curEl.style.transition  = 'transform 0.25s ease';
-    adjEl.style.transition  = 'transform 0.25s ease';
-    curEl.style.transform   = `translateX(${dir > 0 ? W : -W}px)`;
-    adjEl.style.transform   = 'translateX(0)';
+    const W   = window.innerWidth;
+    const els = EL();
+    const oEl = els[origPage], aEl = els[adjPage];
+    oEl.style.transition = 'transform 0.22s ease';
+    aEl.style.transition = 'transform 0.22s ease';
+    oEl.style.transform  = `translateX(${dir > 0 ? W : -W}px)`;
+    aEl.style.transform  = 'translateX(0)';
+
+    const dest = adjPage;
     setTimeout(() => {
-      curEl.style.transition = ''; curEl.style.transform = '';
-      adjEl.style.transition = ''; adjEl.style.transform = '';
-      curEl.classList.add('hidden');
-      navigate(adjPage);
-    }, 260);
-    swipeTranslating = false;
+      oEl.classList.add('hidden');
+      oEl.style.cssText = ''; aEl.style.cssText = '';
+      // Finaliser la navigation sans re-render (déjà rendu)
+      state.currentPage = dest;
+      document.querySelectorAll('.nav-btn[data-page]').forEach(b =>
+        b.classList.toggle('active', b.dataset.page === dest)
+      );
+      const sub = document.getElementById('pageSubtitle');
+      if (sub) sub.textContent = PAGE_SUBTITLES[dest] || '';
+      exitWiggleMode(); exitAccueilWiggle();
+    }, 230);
+
+    active = false; moved = false; adjPage = null; origPage = null; pid = null;
   });
 
   document.addEventListener('pointercancel', e => {
-    if (e.pointerId !== swipePointerId) return;
-    swipeActive = false; swipeTranslating = false;
-    const curEl = getCurrentPageEl();
-    curEl.style.transition = ''; curEl.style.transform = '';
+    if (e.pointerId !== pid) return;
+    cancel();
   });
 }
+
 
 /* ══════════════════════════════════════════
    UNDO
