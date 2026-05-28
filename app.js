@@ -1031,7 +1031,7 @@ function renderAccueilBubble(p, type) {
              </div>`;
   }
   if (type === 'long') {
-    // Badges groupés côte à côte à droite : [<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg>][−]
+    // Badges groupés côte à côte à droite
     const badges = wiggling ? `
       <div class="acc-badges-group">
         <div class="acc-badge acc-badge-edit" data-id="${p.id}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg></div>
@@ -1173,7 +1173,6 @@ function bindAccueilEvents(el) {
   );
 
   el.querySelectorAll('.btn-add').forEach(btn => {
-    // Utiliser pointerup pour éviter tout conflit avec les guards click du DnD
     let btnDown = false;
     btn.addEventListener('pointerdown', e => { e.stopPropagation(); btnDown = true; });
     btn.addEventListener('pointerup', e => {
@@ -1203,11 +1202,10 @@ function exitAccueilWiggle() {
 }
 
 function removeFromAccueil(type, id, nidx) {
-  // Capturer l'état pour undo
   if (type === 'routine') {
     pushUndo({ type:'accueil_skip', id, page:'accueil' });
     accueil.routinesSkipped[id] = true;
-    recordRoutineDone(); // recalcule total après masquage de la routine
+    recordRoutineDone();
   } else if (type === 'tache') {
     pushUndo({ type:'accueil_tache_remove', id, wasDone: !!accueil.tachesDone[id], page:'accueil' });
     accueil.tachesRemoved[id] = true;
@@ -1254,7 +1252,6 @@ function initAccueilDragDrop(el) {
       document.removeEventListener('pointercancel', cleanup);
       _accueilDndActive = false;
       dragEl = null; isDragging = false; activePointerId = null;
-      // wasDragging reste true jusqu'au prochain click pour le bloquer
     }
 
     function onDocMove(e) {
@@ -1304,7 +1301,7 @@ function initAccueilDragDrop(el) {
     }
 
     row.addEventListener('pointerdown', e => {
-      if (_accueilDndActive) return; // déjà en cours
+      if (_accueilDndActive) return;
       if (e.target.closest('.acc-badge,.acc-badges-group,.btn-add')) return;
       const bubble = e.target.closest('[data-id],[data-noteidx]');
       if (!bubble) return;
@@ -1327,13 +1324,15 @@ function initAccueilDragDrop(el) {
         e.preventDefault();
         wasDragging = false;
       } else if (wasDragging) {
-        wasDragging = false; // reset sans bloquer le btn-add
+        wasDragging = false;
       }
     }, true);
   });
-
-
 }
+
+/* ── Variables globales pour le sélecteur (Picker) ── */
+let pickerSection = null;
+let pickerSelected = new Set();
 
 function openPickerSheet(section) {
   pickerSection  = section;
@@ -1415,8 +1414,6 @@ function openGaugeSheet(id) {
   const overlay = document.getElementById('sheetOverlay');
   const sheet   = getSheet();
   const cur     = p.progress || 0;
-
-  // 3 crans max dans la sheet (0%/25%/50%/75%) — 100% = explosion par tap uniquement
   const steps = [0, 1, 2, 3];
 
   sheet.innerHTML = `
@@ -1440,7 +1437,6 @@ function openGaugeSheet(id) {
   `;
 
   let selected = cur;
-
   const fill = sheet.querySelector('#gaugeSheetFill');
   sheet.querySelectorAll('.gauge-step-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1499,15 +1495,12 @@ function openNoteSheet() {
   function addNote(label) {
     if (!label) return;
     accueil.notes.push({ label, color: COLORS[Math.floor(Math.random()*COLORS.length)] });
-    // Mettre à jour l'historique (max 6, pas de doublons)
     state.noteHistory = [label, ...state.noteHistory.filter(n => n !== label)].slice(0, 6);
     saveState();
     closeSheet();
     renderAccueil();
   }
 
-  // Pas de forçage de casse — le clavier natif gère la saisie normalement
-  // Le rendu se fait en minuscule via .toLowerCase() dans renderNoteBubble
   input.addEventListener('keydown', e => { if (e.key==='Enter') addNote(input.value.trim()); });
   sheet.querySelector('#btnNoteCancel').addEventListener('click', closeSheet);
   sheet.querySelector('#btnNoteCreate').addEventListener('click', () => addNote(input.value.trim()));
@@ -1578,7 +1571,6 @@ function openMenu() {
   sheet.querySelector('#menuFreeze').addEventListener('click', () => {
     closeSheet();
     if (state.frozen) {
-      // Reprendre directement
       state.frozen = false;
       renderAccueil();
     } else {
@@ -1696,7 +1688,6 @@ function importData(data) {
    PAGE STATS
 ══════════════════════════════════════════ */
 function getHistory() {
-  // Historique réel uniquement — pas de données fictives
   return state.statsHistory || {};
 }
 
@@ -1707,7 +1698,6 @@ function computeStreak(history) {
     const date = new Date(today); date.setDate(date.getDate()-d);
     const key  = date.toISOString().slice(0,10);
     const h    = history[key];
-    // Aujourd'hui incomplet : ignorer sans casser la série
     if (key === todayStr && (!h || h.done < h.total)) continue;
     if (!h || h.total===0) continue;
     if (h.done===h.total) streak++; else break;
@@ -1760,31 +1750,27 @@ function renderStats() {
   hmHTML+=`</div></div>`;
 
   const routines=state.praxis.filter(p=>p.type==='routine'&&p.active);
-  // Calculer rate30 et streak individuels pour chaque routine
   const praxisStats=routines.map(p => {
-    // Taux sur 30 jours : jours où la routine était attendue et cochée
     let pDone=0, pTotal=0, pStreak=0;
     for (let d=0; d<30; d++) {
       const date = new Date(today); date.setDate(date.getDate()-d);
       const key  = date.toISOString().slice(0,10);
       const h    = history[key];
       if (!h || h.total === 0) continue;
-      // La routine était-elle attendue ce jour-là ?
-      const dow = ((date.getDay()+6)%7)+1; // 1=lun … 7=dim
+      const dow = ((date.getDay()+6)%7)+1;
       if (p.days && !p.days.includes(dow)) continue;
       pTotal++;
       if (h.ids && h.ids.includes(p.id)) pDone++;
     }
     const rate = pTotal > 0 ? Math.round(pDone/pTotal*100) : 0;
-    // Série individuelle : jours consécutifs récents où la routine était cochée
     const todayStr = today.toISOString().slice(0,10);
     for (let d=0; d<=83; d++) {
       const date = new Date(today); date.setDate(date.getDate()-d);
       const key  = date.toISOString().slice(0,10);
       const h    = history[key];
       const dow  = ((date.getDay()+6)%7)+1;
-      if (p.days && !p.days.includes(dow)) continue; // jour non prévu → ne casse pas la série
-      if (key === todayStr && (!h || !(h.ids && h.ids.includes(p.id)))) continue; // aujourd'hui incomplet → ignorer
+      if (p.days && !p.days.includes(dow)) continue;
+      if (key === todayStr && (!h || !(h.ids && h.ids.includes(p.id)))) continue;
       if (!h || h.total === 0) continue;
       if (h.ids && h.ids.includes(p.id)) pStreak++;
       else break;
@@ -1822,6 +1808,8 @@ function renderStats() {
           <div class="hm-legend-cell hm-partial"></div><span class="hm-legend-lbl">Partielle</span>
           <div class="hm-legend-cell hm-full"></div><span class="hm-legend-lbl">Complète</span>
         </div>
+      </div>
+    </div>
     <div class="encart-section fade-in" style="animation-delay:.1s">
       <div class="section-label">Par praxis</div>
       <div class="encart">
