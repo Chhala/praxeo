@@ -176,7 +176,7 @@ function initSwipeNav() {
       const navbar = document.querySelector('.navbar');
       if (navbar) {
         const navTop = navbar.getBoundingClientRect().top;
-        return e.clientY > navTop - 360;
+        return e.clientY > navTop - 480;
       }
       return true;
     }
@@ -1306,10 +1306,12 @@ function initAccueilDragDrop(el) {
     });
 
     row.addEventListener('click', e => {
-      if (wasDragging) {
+      if (wasDragging && !e.target.closest('.btn-add')) {
         e.stopImmediatePropagation();
         e.preventDefault();
         wasDragging = false;
+      } else if (wasDragging) {
+        wasDragging = false; // reset sans bloquer le btn-add
       }
     }, true);
   });
