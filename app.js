@@ -1745,9 +1745,37 @@ function renderStats() {
   hmHTML+=`</div></div>`;
 
   const routines=state.praxis.filter(p=>p.type==='routine'&&p.active);
-  const praxisStats=routines
-    .map(p=>({...p,rate:0,streak:0}))
-    .sort((a,b)=>a.label.localeCompare(b.label,'fr',{sensitivity:'base'}));
+  // Calculer rate30 et streak individuels pour chaque routine
+  const praxisStats=routines.map(p => {
+    // Taux sur 30 jours : jours où la routine était attendue et cochée
+    let pDone=0, pTotal=0, pStreak=0;
+    for (let d=0; d<30; d++) {
+      const date = new Date(today); date.setDate(date.getDate()-d);
+      const key  = date.toISOString().slice(0,10);
+      const h    = history[key];
+      if (!h || h.total === 0) continue;
+      // La routine était-elle attendue ce jour-là ?
+      const dow = ((date.getDay()+6)%7)+1; // 1=lun … 7=dim
+      if (p.days && !p.days.includes(dow)) continue;
+      pTotal++;
+      if (h.ids && h.ids.includes(p.id)) pDone++;
+    }
+    const rate = pTotal > 0 ? Math.round(pDone/pTotal*100) : 0;
+    // Série individuelle : jours consécutifs récents où la routine était cochée
+    const todayStr = today.toISOString().slice(0,10);
+    for (let d=0; d<=83; d++) {
+      const date = new Date(today); date.setDate(date.getDate()-d);
+      const key  = date.toISOString().slice(0,10);
+      const h    = history[key];
+      const dow  = ((date.getDay()+6)%7)+1;
+      if (p.days && !p.days.includes(dow)) continue; // jour non prévu → ne casse pas la série
+      if (key === todayStr && (!h || !(h.ids && h.ids.includes(p.id)))) continue; // aujourd'hui incomplet → ignorer
+      if (!h || h.total === 0) continue;
+      if (h.ids && h.ids.includes(p.id)) pStreak++;
+      else break;
+    }
+    return { ...p, rate, streak: pStreak };
+  }).sort((a,b)=>a.label.localeCompare(b.label,'fr',{sensitivity:'base'}));
 
   const opacity=record>0?Math.min(0.25+streak/record*0.75,1).toFixed(2):'0.25';
 
