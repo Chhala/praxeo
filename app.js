@@ -176,7 +176,7 @@ function initSwipeNav() {
       const navbar = document.querySelector('.navbar');
       if (navbar) {
         const navTop = navbar.getBoundingClientRect().top;
-        return e.clientY > navTop - 240;
+        return e.clientY > navTop - 360;
       }
       return true;
     }
@@ -1314,10 +1314,7 @@ function initAccueilDragDrop(el) {
     }, true);
   });
 
-  // Bloquer tout click sur la page accueil si un drag vient de se terminer
-  el.addEventListener('click', e => {
-    if (_accueilDndActive) { e.stopImmediatePropagation(); e.preventDefault(); }
-  }, true);
+
 }
 
 function openPickerSheet(section) {
