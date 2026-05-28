@@ -1163,14 +1163,21 @@ function bindAccueilEvents(el) {
     })
   );
 
-  el.querySelectorAll('.btn-add').forEach(btn =>
-    btn.addEventListener('click', () => {
+  el.querySelectorAll('.btn-add').forEach(btn => {
+    // Utiliser pointerup pour éviter tout conflit avec les guards click du DnD
+    let btnDown = false;
+    btn.addEventListener('pointerdown', e => { e.stopPropagation(); btnDown = true; });
+    btn.addEventListener('pointerup', e => {
+      e.stopPropagation();
+      if (!btnDown) return;
+      btnDown = false;
       if (state.frozen && btn.dataset.section !== 'note') return;
       exitAccueilWiggle();
       const s = btn.dataset.section;
       if (s === 'note') openNoteSheet(); else openPickerSheet(s);
-    })
-  );
+    });
+    btn.addEventListener('pointercancel', () => { btnDown = false; });
+  });
 }
 
 function enterAccueilWiggle(id, type) {
