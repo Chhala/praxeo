@@ -171,8 +171,11 @@ function initSwipeNav() {
 
   function isSwipeZone(e) {
     const page = state.currentPage;
+    // Vérifier que la page courante est bien visible
+    const pageEl = document.getElementById('page-' + page);
+    if (!pageEl || pageEl.classList.contains('hidden')) return false;
+
     if (page === 'stats') {
-      // Bande fixe en bas : 240px au-dessus de la navbar
       const navbar = document.querySelector('.navbar');
       if (navbar) {
         const navTop = navbar.getBoundingClientRect().top;
@@ -182,11 +185,17 @@ function initSwipeNav() {
     }
     if (page === 'accueil') {
       const row = document.getElementById('rowNote');
-      return row ? e.clientY > row.getBoundingClientRect().bottom : false;
+      if (!row) return false;
+      const r = row.getBoundingClientRect();
+      if (r.bottom === 0) return false; // élément non visible
+      return e.clientY > r.bottom;
     }
     if (page === 'praxis') {
-      const enc = document.querySelector('.praxis-encart');
-      return enc ? e.clientY > enc.getBoundingClientRect().bottom : false;
+      const enc = document.querySelector('#page-praxis .praxis-encart');
+      if (!enc) return false;
+      const r = enc.getBoundingClientRect();
+      if (r.bottom === 0) return false;
+      return e.clientY > r.bottom;
     }
     return false;
   }
