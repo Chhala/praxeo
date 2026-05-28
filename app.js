@@ -172,11 +172,11 @@ function initSwipeNav() {
   function isSwipeZone(e) {
     const page = state.currentPage;
     if (page === 'stats') {
-      // Bande fixe en bas : 80px au-dessus de la navbar
+      // Bande fixe en bas : 240px au-dessus de la navbar
       const navbar = document.querySelector('.navbar');
       if (navbar) {
         const navTop = navbar.getBoundingClientRect().top;
-        return e.clientY > navTop - 80;
+        return e.clientY > navTop - 240;
       }
       return true;
     }
@@ -1687,10 +1687,14 @@ function getHistory() {
 
 function computeStreak(history) {
   const today = new Date(); let streak=0;
+  const todayStr = today.toISOString().slice(0,10);
   for (let d=0; d<=83; d++) {
     const date = new Date(today); date.setDate(date.getDate()-d);
-    const h = history[date.toISOString().slice(0,10)];
-    if (!h||h.total===0) continue;
+    const key  = date.toISOString().slice(0,10);
+    const h    = history[key];
+    // Aujourd'hui incomplet : ignorer sans casser la série
+    if (key === todayStr && (!h || h.done < h.total)) continue;
+    if (!h || h.total===0) continue;
     if (h.done===h.total) streak++; else break;
   }
   return streak;
