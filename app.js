@@ -176,11 +176,8 @@ function initSwipeNav() {
     if (!pageEl || pageEl.classList.contains('hidden')) return false;
 
     if (page === 'stats') {
-      const navbar = document.querySelector('.navbar');
-      if (navbar) {
-        const navTop = navbar.getBoundingClientRect().top;
-        return e.clientY > navTop - 480;
-      }
+      // Pas de restriction de zone : la détection de direction dans pointermove
+      // (|dy| > |dx| → annule) gère seule le conflit scroll/swipe.
       return true;
     }
     if (page === 'accueil') {
@@ -1495,7 +1492,9 @@ function openNoteSheet() {
   function addNote(label) {
     if (!label) return;
     accueil.notes.push({ label, color: COLORS[Math.floor(Math.random()*COLORS.length)] });
-    state.noteHistory = [label, ...state.noteHistory.filter(n => n !== label)].slice(0, 6);
+    const key = label.toLowerCase();
+    state.noteHistory = [label, ...state.noteHistory.filter(n => n.toLowerCase() !== key)].slice(0, 6);
+    saveAccueil();
     saveState();
     closeSheet();
     renderAccueil();
