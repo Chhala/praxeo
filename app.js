@@ -19,6 +19,7 @@ let state = {
   editId:      null,
   frozen:      false,  // gel de l'application
   frozenDays:  [],     // dates gelées ['YYYY-MM-DD']
+  notes:       [],     // bulles bloc-notes (persistantes, hors clé journalière)
   noteHistory: [],     // historique des notes bloc-notes
   statsHistory: {},    // { 'YYYY-MM-DD': { done: N, total: N, ids: ['r04',...] } }
   statsRecord:  0,     // meilleure série enregistrée
@@ -54,6 +55,7 @@ function saveState() {
       praxis:       state.praxis,
       frozen:       state.frozen,
       frozenDays:   state.frozenDays,
+      notes:        state.notes,
       noteHistory:  state.noteHistory,
       statsHistory: state.statsHistory || {},
       statsRecord:  state.statsRecord  || 0,
@@ -70,6 +72,7 @@ function loadState() {
     // Toujours restaurer statsHistory et les métadonnées, quelle que soit l'état de praxis
     state.frozen       = snap.frozen       || false;
     state.frozenDays   = snap.frozenDays   || [];
+    state.notes        = snap.notes        || [];
     state.noteHistory  = snap.noteHistory  || [];
     state.statsHistory = snap.statsHistory || {};
     state.statsRecord  = snap.statsRecord  || 0;
@@ -176,8 +179,11 @@ function initSwipeNav() {
     if (!pageEl || pageEl.classList.contains('hidden')) return false;
 
     if (page === 'stats') {
-      // Pas de restriction de zone : la détection de direction dans pointermove
-      // (|dy| > |dx| → annule) gère seule le conflit scroll/swipe.
+      const navbar = document.querySelector('.navbar');
+      if (navbar) {
+        const navTop = navbar.getBoundingClientRect().top;
+        return e.clientY > navTop - 480;
+      }
       return true;
     }
     if (page === 'accueil') {
@@ -349,11 +355,11 @@ function doUndo() {
     }
   }
   else if (action.type === 'accueil_note_remove') {
-    accueil.notes.splice(action.nidx, 0, action.note);
+    state.notes.splice(action.nidx, 0, action.note);
     saveAccueil();
   }
   else if (action.type === 'accueil_note_tap') {
-    accueil.notes.splice(action.nidx, 0, action.note);
+    state.notes.splice(action.nidx, 0, action.note);
     saveAccueil();
   }
 
@@ -857,7 +863,7 @@ function loadAccueil() {
       accueil.tachesDone      = s.tachesDone      || {};
       accueil.tachesRemoved   = s.tachesRemoved   || {};
       accueil.longsRemoved    = s.longsRemoved     || {};
-      accueil.notes           = s.notes            || [];
+      // notes est géré dans state, pas dans la clé journalière
     }
   } catch(e) {}
 }
@@ -870,7 +876,7 @@ function saveAccueil() {
       tachesDone:      accueil.tachesDone,
       tachesRemoved:   accueil.tachesRemoved,
       longsRemoved:    accueil.longsRemoved,
-      notes:           accueil.notes,
+      // notes est dans state, persisté par saveState()
     };
     localStorage.setItem(ACCUEIL_KEY(), JSON.stringify(snap));
     // Nettoyer les clés d'autres jours (garder 7 jours max)
@@ -892,7 +898,6 @@ const accueil = {
   tachesDone:      {},
   tachesRemoved:   {},
   longsRemoved:    {},
-  notes:           [],
   wiggleId:        null,
   wiggleType:      null,
   gaugeEditId:     null,
@@ -989,7 +994,7 @@ function renderAccueil() {
       <div class="section-label">Bloc-notes</div>
       <div class="encart">
         <div class="bubble-row" id="rowNote" data-section="note">
-          ${accueil.notes.map((n,i) => renderNoteBubble(n,i)).join('')}
+          ${state.notes.map((n,i) => renderNoteBubble(n,i)).join('')}
         </div>
         <div class="btn-add-row"><button class="btn-add" data-section="note">+</button></div>
       </div>
@@ -1142,9 +1147,9 @@ function bindAccueilEvents(el) {
         }
       }
       else if (type === 'note') {
-        pushUndo({ type:'accueil_note_tap', note: { ...accueil.notes[nidx] }, nidx, page:'accueil' });
+        pushUndo({ type:'accueil_note_tap', note: { ...state.notes[nidx] }, nidx, page:'accueil' });
         saveAccueil();
-        explodeBubble(b, () => { accueil.notes.splice(nidx, 1); saveAccueil(); renderAccueil(); });
+        explodeBubble(b, () => { state.notes.splice(nidx, 1); saveAccueil(); renderAccueil(); });
       }
     });
   });
@@ -1211,8 +1216,8 @@ function removeFromAccueil(type, id, nidx) {
     pushUndo({ type:'accueil_long_skip', id, page:'accueil' });
     accueil.longsRemoved[id] = true;
   } else if (type === 'note' && nidx !== null) {
-    pushUndo({ type:'accueil_note_remove', note: { ...accueil.notes[nidx] }, nidx, page:'accueil' });
-    accueil.notes.splice(nidx, 1);
+    pushUndo({ type:'accueil_note_remove', note: { ...state.notes[nidx] }, nidx, page:'accueil' });
+    state.notes.splice(nidx, 1);
   }
   accueil.wiggleId = accueil.wiggleType = null;
   saveAccueil();
@@ -1463,6 +1468,14 @@ function openGaugeSheet(id) {
 /* ══════════════════════════════════════════
    NOTE SHEET
 ══════════════════════════════════════════ */
+/* ── Couleur note sans doublon ── */
+function pickNoteColor() {
+  const used = new Set(state.notes.map(n => n.color));
+  const available = COLORS.filter(c => !used.has(c));
+  const pool = available.length ? available : COLORS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function openNoteSheet() {
   const overlay = document.getElementById('sheetOverlay');
   const sheet   = getSheet();
@@ -1491,10 +1504,8 @@ function openNoteSheet() {
 
   function addNote(label) {
     if (!label) return;
-    accueil.notes.push({ label, color: COLORS[Math.floor(Math.random()*COLORS.length)] });
-    const key = label.toLowerCase();
-    state.noteHistory = [label, ...state.noteHistory.filter(n => n.toLowerCase() !== key)].slice(0, 6);
-    saveAccueil();
+    state.notes.push({ label, color: pickNoteColor() });
+    state.noteHistory = [label, ...state.noteHistory.filter(n => n !== label)].slice(0, 6);
     saveState();
     closeSheet();
     renderAccueil();
@@ -1675,6 +1686,7 @@ function exportData() {
 function importData(data) {
   if (data.praxis)                state.praxis       = data.praxis;
   if (data.frozenDays)            state.frozenDays   = data.frozenDays;
+  if (data.notes)                 state.notes        = data.notes;
   if (data.noteHistory)           state.noteHistory  = data.noteHistory;
   if (data.frozen !== undefined)  state.frozen       = data.frozen;
   if (data.statsHistory)          state.statsHistory = data.statsHistory;
