@@ -850,7 +850,8 @@ function savePraxis() {
 const ACCUEIL_KEY = () => 'praxeo_accueil_' + todayKeyStatic();
 
 function todayKeyStatic() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function loadAccueil() {
@@ -904,7 +905,10 @@ const accueil = {
 };
 
 /* ── Enregistrement stats quotidiennes ── */
-function todayKey() { return new Date().toISOString().slice(0, 10); }
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function recalibrateTodayStats() {
   // Corrige l'entrée du jour si done ne correspond pas à routinesDone réel
@@ -1886,3 +1890,17 @@ function openStatsHelp() {
   overlay.classList.add('open');
   sheet.classList.add('open');
 }
+
+/* ── Rafraîchissement au retour au premier plan ── */
+(function() {
+  let lastDay = todayKeyStatic();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    const today = todayKeyStatic();
+    if (today !== lastDay) {
+      lastDay = today;
+      loadAccueil();
+      if (state.currentPage === 'accueil') renderAccueil();
+    }
+  });
+})();
