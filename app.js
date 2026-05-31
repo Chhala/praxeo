@@ -909,6 +909,9 @@ function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+function localDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
 
 function recalibrateTodayStats() {
   // Corrige l'entrée du jour si done ne correspond pas à routinesDone réel
@@ -1674,6 +1677,7 @@ function exportData() {
     praxis:       state.praxis,
     frozen:       state.frozen,
     frozenDays:   state.frozenDays,
+    notes:        state.notes,
     noteHistory:  state.noteHistory,
     statsHistory: state.statsHistory || {},
     statsRecord:  state.statsRecord  || 0,
@@ -1708,10 +1712,10 @@ function getHistory() {
 
 function computeStreak(history) {
   const today = new Date(); let streak=0;
-  const todayStr = today.toISOString().slice(0,10);
+  const todayStr = localDateKey(today);
   for (let d=0; d<=83; d++) {
     const date = new Date(today); date.setDate(date.getDate()-d);
-    const key  = date.toISOString().slice(0,10);
+    const key  = localDateKey(date);
     const h    = history[key];
     if (key === todayStr && (!h || h.done < h.total)) continue;
     if (!h || h.total===0) continue;
@@ -1728,7 +1732,7 @@ function renderStats() {
   let total30=0, done30=0;
   for (let d=0;d<30;d++) {
     const date=new Date(today); date.setDate(date.getDate()-d);
-    const h=history[date.toISOString().slice(0,10)];
+    const h=history[localDateKey(date)];
     if(h&&h.total>0){total30+=h.total;done30+=h.done;}
   }
   const rate30=total30>0?Math.round(done30/total30*100):0;
@@ -1749,8 +1753,8 @@ function renderStats() {
     for (let day=0;day<7;day++) {
       const cellD=new Date(startMonday); cellD.setDate(startMonday.getDate()+day);
       const isFuture  = cellD > today;
-      const isFrozen  = state.frozenDays.includes(cellD.toISOString().slice(0,10));
-      const h = history[cellD.toISOString().slice(0,10)];
+      const isFrozen  = state.frozenDays.includes(localDateKey(cellD));
+      const h = history[localDateKey(cellD)];
       let cls='hm-cell';
       if (isFuture)              cls+=' hm-future';
       else if (isFrozen)         cls+=' hm-frozen';
@@ -1769,7 +1773,7 @@ function renderStats() {
     let pDone=0, pTotal=0, pStreak=0;
     for (let d=0; d<30; d++) {
       const date = new Date(today); date.setDate(date.getDate()-d);
-      const key  = date.toISOString().slice(0,10);
+      const key  = localDateKey(date);
       const h    = history[key];
       if (!h || h.total === 0) continue;
       const dow = ((date.getDay()+6)%7)+1;
@@ -1778,10 +1782,10 @@ function renderStats() {
       if (h.ids && h.ids.includes(p.id)) pDone++;
     }
     const rate = pTotal > 0 ? Math.round(pDone/pTotal*100) : 0;
-    const todayStr = today.toISOString().slice(0,10);
+    const todayStr = localDateKey(today);
     for (let d=0; d<=83; d++) {
       const date = new Date(today); date.setDate(date.getDate()-d);
-      const key  = date.toISOString().slice(0,10);
+      const key  = localDateKey(date);
       const h    = history[key];
       const dow  = ((date.getDay()+6)%7)+1;
       if (p.days && !p.days.includes(dow)) continue;
