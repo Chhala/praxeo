@@ -331,6 +331,10 @@ function doUndo() {
   else if (action.type === 'accueil_tache_remove') {
     delete accueil.tachesRemoved[action.id];
     if (action.wasDone) accueil.tachesDone[action.id] = true;
+    if (action.validated) {
+      const p = state.praxis.find(x => x.id === action.id);
+      if (p) { p.active = true; saveState(); }
+    }
     saveAccueil();
   }
   else if (action.type === 'accueil_skip') {
@@ -1117,10 +1121,11 @@ function bindAccueilEvents(el) {
       }
       else if (type === 'tache') {
         if (accueil.tachesDone[id]) {
-          pushUndo({ type:'accueil_tache_remove', id, page:'accueil' });
+          pushUndo({ type:'accueil_tache_remove', id, validated: true, page:'accueil' });
           explodeBubble(b, () => {
-            accueil.tachesRemoved[id] = true;
             delete accueil.tachesDone[id];
+            const p = state.praxis.find(x => x.id === id);
+            if (p) { p.active = false; saveState(); }
             saveAccueil();
             renderAccueil();
           });
