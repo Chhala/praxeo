@@ -360,11 +360,11 @@ function doUndo() {
   }
   else if (action.type === 'accueil_note_remove') {
     state.notes.splice(action.nidx, 0, action.note);
-    saveAccueil();
+    saveState();
   }
   else if (action.type === 'accueil_note_tap') {
     state.notes.splice(action.nidx, 0, action.note);
-    saveAccueil();
+    saveState();
   }
 
   // Animer le bouton undo
@@ -1160,8 +1160,7 @@ function bindAccueilEvents(el) {
       }
       else if (type === 'note') {
         pushUndo({ type:'accueil_note_tap', note: { ...state.notes[nidx] }, nidx, page:'accueil' });
-        saveAccueil();
-        explodeBubble(b, () => { state.notes.splice(nidx, 1); saveAccueil(); renderAccueil(); });
+        explodeBubble(b, () => { state.notes.splice(nidx, 1); saveState(); renderAccueil(); });
       }
     });
   });
@@ -1230,6 +1229,7 @@ function removeFromAccueil(type, id, nidx) {
   } else if (type === 'note' && nidx !== null) {
     pushUndo({ type:'accueil_note_remove', note: { ...state.notes[nidx] }, nidx, page:'accueil' });
     state.notes.splice(nidx, 1);
+    saveState();
   }
   accueil.wiggleId = accueil.wiggleType = null;
   saveAccueil();
