@@ -1309,7 +1309,6 @@ body {
   background: var(--text);
   opacity: 0.6;
   flex-shrink: 0;
-  pointer-events: none;
 }
 .menu-btn:active .menu-dot { opacity: 1; }
 
