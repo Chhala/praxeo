@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════
-   PRAXEO — app.js  v2.0
+   PRAXEO — app.js  v2.1
 ═══════════════════════════════════════ */
 'use strict';
 
@@ -526,6 +526,7 @@ function deletePraxis(id) {
   state.wiggleId = null;
   // Si c'était une routine active, recalculer les stats du jour
   if (removed.type === 'routine' && removed.active) recordRoutineDone();
+  else saveState(); // Sauvegarde pour les tâches et objectifs long terme
   renderPraxis();
 }
 
@@ -646,6 +647,10 @@ function initSheet() {
   document.body.appendChild(overlay);
   document.body.appendChild(sheet);
 }
+
+/* ── Variables globales pour le sélecteur (Picker) ── */
+let pickerSection = null;
+let pickerSelected = new Set();
 
 function buildSheetHTML(editMode) {
   const s = state.sheet;
@@ -830,6 +835,7 @@ function createPraxis(activate) {
     ...(state.sheet.type === 'routine' ? { days: [...state.sheet.days] } : {}),
     ...(state.sheet.type === 'long'    ? { progress: 0 } : {})
   });
+  saveState(); // Sauvegarde de la création
   closeSheet();
   renderPraxis();
 }
@@ -843,6 +849,7 @@ function savePraxis() {
   p.color = state.sheet.color;
   p.type  = state.sheet.type;
   if (state.sheet.type === 'routine') p.days = [...state.sheet.days];
+  saveState(); // Sauvegarde de la modification
   closeSheet();
   renderPraxis();
 }
@@ -868,7 +875,6 @@ function loadAccueil() {
       accueil.tachesDone      = s.tachesDone      || {};
       accueil.tachesRemoved   = s.tachesRemoved   || {};
       accueil.longsRemoved    = s.longsRemoved     || {};
-      // notes est géré dans state, pas dans la clé journalière
     }
   } catch(e) {}
 }
@@ -881,7 +887,6 @@ function saveAccueil() {
       tachesDone:      accueil.tachesDone,
       tachesRemoved:   accueil.tachesRemoved,
       longsRemoved:    accueil.longsRemoved,
-      // notes est dans state, persisté par saveState()
     };
     localStorage.setItem(ACCUEIL_KEY(), JSON.stringify(snap));
     // Nettoyer les clés d'autres jours (garder 7 jours max)
@@ -1020,13 +1025,8 @@ function renderAccueilBubble(p, type) {
   const wiggling  = accueil.wiggleId === p.id && accueil.wiggleType === type;
   const gaugeEdit = accueil.gaugeEditId === p.id;
 
-  // Badge suppression — toujours à droite
   const delBadge = wiggling
     ? `<div class="acc-badge acc-badge-delete" data-id="${p.id}" data-type="${type}">−</div>` : '';
-
-  // Badge édition jauge — à gauche du badge suppression (donc rendu en premier pour long terme)
-  const editGauge = (wiggling && type === 'long')
-    ? `<div class="acc-badge acc-badge-edit" data-id="${p.id}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg></div>` : '';
 
   if (type === 'routine') {
     return `<div class="bubble bubble-routine${wiggling?' acc-wiggle':''}"
@@ -1044,7 +1044,6 @@ function renderAccueilBubble(p, type) {
              </div>`;
   }
   if (type === 'long') {
-    // Badges groupés côte à côte à droite
     const badges = wiggling ? `
       <div class="acc-badges-group">
         <div class="acc-badge acc-badge-edit" data-id="${p.id}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg></div>
@@ -1344,10 +1343,6 @@ function initAccueilDragDrop(el) {
   });
 }
 
-/* ── Variables globales pour le sélecteur (Picker) ── */
-let pickerSection = null;
-let pickerSelected = new Set();
-
 function openPickerSheet(section) {
   pickerSection  = section;
   pickerSelected = new Set();
@@ -1414,6 +1409,8 @@ function validatePicker() {
     else if (pickerSection === 'tache') { delete accueil.tachesRemoved[id]; delete accueil.tachesDone[id]; }
     else if (pickerSection === 'long')  { delete accueil.longsRemoved[id]; }
   });
+  saveState();   // Enregistre l'activation de la tâche
+  saveAccueil(); // Enregistre le retrait de la liste des tâches masquées
   closeSheet();
   renderAccueil();
 }
@@ -1480,7 +1477,6 @@ function openGaugeSheet(id) {
 /* ══════════════════════════════════════════
    NOTE SHEET
 ══════════════════════════════════════════ */
-/* ── Couleur note sans doublon ── */
 function pickNoteColor() {
   const used = new Set(state.notes.map(n => n.color));
   const available = COLORS.filter(c => !used.has(c));
@@ -1572,7 +1568,7 @@ function openMenu() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
-        Importer les données
+        Le transfert de données
       </button>
       <input type="file" id="importFile" accept=".json" style="display:none;">
       <div class="menu-divider"></div>
@@ -1584,332 +1580,4 @@ function openMenu() {
       </button>
     </div>
     <div class="sheet-actions" style="margin-top:12px;">
-      <button class="btn-sheet btn-cancel" id="menuClose">Fermer</button>
-    </div>
-  `;
-
-  sheet.querySelector('#menuClose').addEventListener('click', closeSheet);
-
-  sheet.querySelector('#menuFreeze').addEventListener('click', () => {
-    closeSheet();
-    if (state.frozen) {
-      state.frozen = false;
-      renderAccueil();
-    } else {
-      openConfirmSheet(
-        'Geler l\'application ?',
-        'Les routines ne seront plus comptabilisées. Le bloc-notes reste actif.',
-        'Geler',
-        () => { state.frozen = true; renderAccueil(); }
-      );
-    }
-  });
-
-  sheet.querySelector('#menuExport').addEventListener('click', () => {
-    closeSheet();
-    exportData();
-  });
-
-  sheet.querySelector('#menuImport').addEventListener('click', () => {
-    sheet.querySelector('#importFile').click();
-  });
-
-  sheet.querySelector('#importFile').addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    closeSheet();
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        openConfirmSheet(
-          'Importer les données ?',
-          'Les données actuelles seront remplacées.',
-          'Importer',
-          () => importData(data)
-        );
-      } catch(err) {
-        alert('Fichier invalide.');
-      }
-    };
-    reader.readAsText(file);
-  });
-
-  sheet.querySelector('#menuResetStats').addEventListener('click', () => {
-    closeSheet();
-    openConfirmSheet(
-      'Réinitialiser les stats ?',
-      'Toutes les statistiques seront effacées. Les praxis sont conservées.',
-      'Réinitialiser',
-      () => {
-        state.frozenDays   = [];
-        state.frozen       = false;
-        state.statsHistory = {};
-        state.statsRecord  = 0;
-        saveState();
-        renderStats();
-      }
-    );
-  });
-
-  overlay.classList.add('open');
-  sheet.classList.add('open');
-}
-
-function openConfirmSheet(title, sub, confirmLabel, onConfirm) {
-  const overlay = document.getElementById('sheetOverlay');
-  const sheet   = getSheet();
-  sheet.innerHTML = `
-    <div class="sheet-handle"></div>
-    <div class="sheet-confirm-text">${title}</div>
-    <div class="sheet-confirm-sub">${sub}</div>
-    <div class="sheet-actions" style="margin-top:20px;">
-      <button class="btn-sheet btn-cancel" id="btnConfirmCancel">Annuler</button>
-      <button class="btn-sheet btn-delete" id="btnConfirmOk">${confirmLabel}</button>
-    </div>
-  `;
-  sheet.querySelector('#btnConfirmCancel').addEventListener('click', closeSheet);
-  sheet.querySelector('#btnConfirmOk').addEventListener('click', () => { closeSheet(); onConfirm(); });
-  overlay.classList.add('open');
-  sheet.classList.add('open');
-}
-
-/* ── Export / Import ── */
-function exportData() {
-  const data = {
-    version: '1.0',
-    exportedAt: new Date().toISOString(),
-    praxis:       state.praxis,
-    frozen:       state.frozen,
-    frozenDays:   state.frozenDays,
-    notes:        state.notes,
-    noteHistory:  state.noteHistory,
-    statsHistory: state.statsHistory || {},
-    statsRecord:  state.statsRecord  || 0,
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `praxeo_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importData(data) {
-  if (data.praxis)                state.praxis       = data.praxis;
-  if (data.frozenDays)            state.frozenDays   = data.frozenDays;
-  if (data.notes)                 state.notes        = data.notes;
-  if (data.noteHistory)           state.noteHistory  = data.noteHistory;
-  if (data.frozen !== undefined)  state.frozen       = data.frozen;
-  if (data.statsHistory)          state.statsHistory = data.statsHistory;
-  if (data.statsRecord !== undefined) state.statsRecord = data.statsRecord;
-  saveState();
-  navigate(state.currentPage);
-}
-
-/* ══════════════════════════════════════════
-   PAGE STATS
-══════════════════════════════════════════ */
-function getHistory() {
-  return state.statsHistory || {};
-}
-
-function computeStreak(history) {
-  const today = new Date(); let streak=0;
-  const todayStr = localDateKey(today);
-  for (let d=0; d<=83; d++) {
-    const date = new Date(today); date.setDate(date.getDate()-d);
-    const key  = localDateKey(date);
-    const h    = history[key];
-    if (key === todayStr && (!h || h.done < h.total)) continue;
-    if (!h || h.total===0) continue;
-    if (h.done===h.total) streak++; else break;
-  }
-  return streak;
-}
-
-function renderStats() {
-  const el=document.getElementById('page-stats'), today=new Date();
-  const history=getHistory(), streak=computeStreak(history), record=state.statsRecord||0;
-  const MONTHS=['Jan','Fév','Mar','Avr','Mai','Jui','Jul','Aoû','Sep','Oct','Nov','Déc'];
-
-  let total30=0, done30=0;
-  for (let d=0;d<30;d++) {
-    const date=new Date(today); date.setDate(date.getDate()-d);
-    const h=history[localDateKey(date)];
-    if(h&&h.total>0){total30+=h.total;done30+=h.done;}
-  }
-  const rate30=total30>0?Math.round(done30/total30*100):0;
-  const totalFull=Object.values(history).filter(h=>h.total>0&&h.done===h.total).length;
-
-  const WEEKS=20, todayDow=(today.getDay()+6)%7;
-  let hmHTML=`<div class="hm-wrap"><div class="hm-days">`;
-  ['L','M','M','J','V','S','D'].forEach(d=>hmHTML+=`<div class="hm-day-lbl">${d}</div>`);
-  hmHTML+=`</div><div class="hm-cols">`;
-  let lastMonth=-1;
-  for (let w=0;w<WEEKS;w++) {
-    hmHTML+=`<div class="hm-col">`;
-    const startMonday=new Date(today); startMonday.setDate(today.getDate()-todayDow-(WEEKS-1-w)*7);
-    const m=startMonday.getMonth();
-    const monthLbl=(m!==lastMonth&&startMonday.getDate()<=7)?MONTHS[m]:'';
-    if(monthLbl)lastMonth=m;
-    hmHTML+=`<div class="hm-month">${monthLbl}</div>`;
-    for (let day=0;day<7;day++) {
-      const cellD=new Date(startMonday); cellD.setDate(startMonday.getDate()+day);
-      const isFuture  = cellD > today;
-      const isFrozen  = state.frozenDays.includes(localDateKey(cellD));
-      const h = history[localDateKey(cellD)];
-      let cls='hm-cell';
-      if (isFuture)              cls+=' hm-future';
-      else if (isFrozen)         cls+=' hm-frozen';
-      else if(!h||h.total===0)   cls+=' hm-empty';
-      else if(h.done===h.total)  cls+=' hm-full';
-      else if(h.done>0)          cls+=' hm-partial';
-      else                       cls+=' hm-none';
-      hmHTML+=`<div class="${cls}"></div>`;
-    }
-    hmHTML+=`</div>`;
-  }
-  hmHTML+=`</div></div>`;
-
-  const routines=state.praxis.filter(p=>p.type==='routine'&&p.active);
-  const praxisStats=routines.map(p => {
-    let pDone=0, pTotal=0, pStreak=0;
-    for (let d=0; d<30; d++) {
-      const date = new Date(today); date.setDate(date.getDate()-d);
-      const key  = localDateKey(date);
-      const h    = history[key];
-      if (!h || h.total === 0) continue;
-      const dow = ((date.getDay()+6)%7)+1;
-      if (p.days && !p.days.includes(dow)) continue;
-      pTotal++;
-      if (h.ids && h.ids.includes(p.id)) pDone++;
-    }
-    const rate = pTotal > 0 ? Math.round(pDone/pTotal*100) : 0;
-    const todayStr = localDateKey(today);
-    for (let d=0; d<=83; d++) {
-      const date = new Date(today); date.setDate(date.getDate()-d);
-      const key  = localDateKey(date);
-      const h    = history[key];
-      const dow  = ((date.getDay()+6)%7)+1;
-      if (p.days && !p.days.includes(dow)) continue;
-      if (key === todayStr && (!h || !(h.ids && h.ids.includes(p.id)))) continue;
-      if (!h || h.total === 0) continue;
-      if (h.ids && h.ids.includes(p.id)) pStreak++;
-      else break;
-    }
-    return { ...p, rate, streak: pStreak };
-  }).sort((a,b)=>a.label.localeCompare(b.label,'fr',{sensitivity:'base'}));
-
-  const opacity=record>0?Math.min(0.25+streak/record*0.75,1).toFixed(2):'0.25';
-
-  el.innerHTML=`
-    <div class="encart-section fade-in">
-      <div class="section-label">Série en cours</div>
-      <div class="encart stats-streak-encart">
-        <div class="stats-streak-row">
-          <div class="stats-streak-left">
-            <div class="stats-streak-number">${streak}</div>
-            <div class="stats-streak-label">jours consécutifs</div>
-            <div class="stats-mini-row">
-              <div class="stats-mini"><div class="stats-mini-val">${record}</div><div class="stats-mini-lbl">Record</div></div>
-              <div class="stats-mini"><div class="stats-mini-val">${rate30}%</div><div class="stats-mini-lbl">30 jours</div></div>
-              <div class="stats-mini"><div class="stats-mini-val">${totalFull}</div><div class="stats-mini-lbl">Total</div></div>
-            </div>
-          </div>
-          <div class="stats-laurier">
-            <img src="couronne.svg" alt="Couronne" class="laurier-img" style="opacity:${opacity};">
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="encart-section fade-in" style="animation-delay:.05s">
-      <div class="section-label">Historique</div>
-      <div class="encart">${hmHTML}
-        <div class="hm-legend">
-          <div class="hm-legend-cell hm-none"></div><span class="hm-legend-lbl">Aucune</span>
-          <div class="hm-legend-cell hm-partial"></div><span class="hm-legend-lbl">Partielle</span>
-          <div class="hm-legend-cell hm-full"></div><span class="hm-legend-lbl">Complète</span>
-        </div>
-      </div>
-    </div>
-    <div class="encart-section fade-in" style="animation-delay:.1s">
-      <div class="section-label">Par praxis</div>
-      <div class="encart">
-        ${praxisStats.map((p,i)=>`
-          ${i>0?'<div class="stats-divider"></div>':''}
-          <div class="stats-praxis-row">
-            <div class="stats-dot" style="background:${p.color};"></div>
-            <div class="stats-praxis-name">${p.label}</div>
-            <div class="stats-praxis-streak">${p.streak}j</div>
-            <div class="stats-bar-wrap"><div class="stats-bar" style="width:${p.rate}%;background:${p.color};"></div></div>
-            <div class="stats-praxis-rate">${p.rate}%</div>
-          </div>`).join('')}
-      </div>
-    </div>
-    <div class="stats-help-row fade-in">
-      <button class="stats-help-btn" id="statsHelpBtn">?</button>
-    </div>
-  `;
-
-  document.getElementById('statsHelpBtn').addEventListener('click', openStatsHelp);
-}
-
-function openStatsHelp() {
-  const overlay=document.getElementById('sheetOverlay'), sheet=getSheet();
-  sheet.innerHTML=`
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Comprendre les stats</div>
-    <div class="stats-help-content">
-      <div class="stats-help-item">
-        <div class="stats-help-label">Jours consécutifs</div>
-        <div class="stats-help-desc">Nombre de jours d'affilée où toutes tes routines programmées ont été complétées.</div>
-      </div>
-      <div class="stats-help-item">
-        <div class="stats-help-label">Record</div>
-        <div class="stats-help-desc">Ta meilleure série depuis le début.</div>
-      </div>
-      <div class="stats-help-item">
-        <div class="stats-help-label">30 jours</div>
-        <div class="stats-help-desc">Taux de complétion global sur les 30 derniers jours (routines réalisées / routines programmées).</div>
-      </div>
-      <div class="stats-help-item">
-        <div class="stats-help-label">Total</div>
-        <div class="stats-help-desc">Nombre de journées où toutes tes routines ont été complétées, depuis le début.</div>
-      </div>
-      <div class="stats-help-item">
-        <div class="stats-help-label">Historique</div>
-        <div class="stats-help-desc">Chaque case = un jour. Bleu plein = toutes les routines faites. Bleu atténué = partiellement. Gris = aucune.</div>
-      </div>
-      <div class="stats-help-item">
-        <div class="stats-help-label">Par praxis</div>
-        <div class="stats-help-desc">Série individuelle et taux de complétion sur 30 jours pour chaque routine active.</div>
-      </div>
-      <div class="stats-help-item">
-        <div class="stats-help-label">Couronne de laurier</div>
-        <div class="stats-help-desc">Plus ta série est longue, plus la couronne est dense. Elle reflète ton engagement quotidien.</div>
-      </div>
-    </div>
-    <div class="sheet-actions">
-      <button class="btn-sheet btn-activate" id="btnHelpClose">Fermer</button>
-    </div>
-  `;
-  sheet.querySelector('#btnHelpClose').addEventListener('click', closeSheet);
-  overlay.classList.add('open');
-  sheet.classList.add('open');
-}
-
-/* ── Rafraîchissement au retour au premier plan ── */
-(function() {
-  let lastDay = todayKeyStatic();
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
-    const today = todayKeyStatic();
-    if (today !== lastDay) {
-      lastDay = today;
-      loadAccueil();
-      if (state.currentPage === 'accueil') renderAccueil();
-    }
-  });
-})();
+      <button class="btn-sheet btn-cancel" id="menuClose">Fermer</button
