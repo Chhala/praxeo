@@ -1,6 +1,6 @@
-/* ═══════════════════════════════════════
+/* ═════════════════════════════════════════════════════════
    PRAXEO — app.js
-═══════════════════════════════════════ */
+═════════════════════════════════════════════════════════ */
 'use strict';
 
 const COLORS      = ['#005A92','#5D1935','#D4AF37','#E2953B','#6E7A68','#A66E4E','#1A1A18'];
@@ -26,9 +26,12 @@ let state = {
 };
 
 /* ══════════════════════════════════════════
-   DONNÉES & PERSISTANCE
+   DONNÉES & PERSISTANCE (localStorage)
 ══════════════════════════════════════════ */
-function randColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
+function randColor() { 
+  return COLORS[Math.floor(Math.random() * COLORS.length)]; 
+}
+
 function pickColors(n) {
   const pool = [...COLORS];
   const out = [];
@@ -38,6 +41,7 @@ function pickColors(n) {
   }
   return out;
 }
+
 const _dc = pickColors(4);
 const PRAXIS_DATA = [
   { id:'r01', type:'routine', label:'FAIRE LE LIT', color:_dc[0], active:true,  days:[1,2,3,4,5,6,7] },
@@ -60,7 +64,7 @@ function saveState() {
       statsRecord:  state.statsRecord  || 0,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
-  } catch(e) {}
+  } catch(e) { /* quota dépassé — silencieux */ }
 }
 
 function loadState() {
@@ -79,7 +83,7 @@ function loadState() {
       return true;
     }
     return false;
-  } catch(e) {}
+  } catch(e) { /* données corrompues — silencieux */ }
   return false;
 }
 
@@ -91,7 +95,7 @@ function loadPraxis() {
 }
 
 /* ══════════════════════════════════════════
-   BOOT & NAVIGATION
+   INITIALISATION (BOOT) & NAVIGATION
 ══════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => {
   loadPraxis();
@@ -145,7 +149,7 @@ function initNav() {
 }
 
 /* ══════════════════════════════════════════
-   SWIPE GESTURES
+   GESTION DES SWIPES (BALAYAGES ÉCRAN)
 ══════════════════════════════════════════ */
 function initSwipeNav() {
   const PAGES     = ['accueil','praxis','stats'];
@@ -265,11 +269,13 @@ function initSwipeNav() {
     active = false; moved = false; adjPage = null; origPage = null; pid = null;
   });
 
-  document.addEventListener('pointercancel', e => { if (e.pointerId === pid) cancel(); });
+  document.addEventListener('pointercancel', e => { 
+    if (e.pointerId === pid) cancel(); 
+  });
 }
 
 /* ══════════════════════════════════════════
-   UNDO SYSTEM
+   SYSTÈMES DE RETOUR EN ARRIÈRE (UNDO)
 ══════════════════════════════════════════ */
 function pushUndo(action) {
   state.undoStack.push(action);
@@ -344,7 +350,7 @@ function doUndo() {
 }
 
 /* ══════════════════════════════════════════
-   PAGE : PRAXIS LIST MANAGEMENT
+   PAGE : LISTE GLOBALE (PRAXIS)
 ══════════════════════════════════════════ */
 function renderPraxis() {
   const el     = document.getElementById('page-praxis');
@@ -518,7 +524,7 @@ function initPraxisDragDrop(el) {
 }
 
 /* ══════════════════════════════════════════
-   BOTTOM SHEET LOGIC
+   PANNEAUX COMPOSANTS (BOTTOM SHEETS)
 ══════════════════════════════════════════ */
 function buildSheetHTML(editMode) {
   const s = state.sheet;
@@ -589,10 +595,15 @@ function refreshSheet(sheet, editMode) {
   const input = fresh.querySelector('#sheetInput');
   if (input && state.sheet.label) { input.focus(); input.setSelectionRange(state.sheet.label.length, state.sheet.label.length); }
 }
-function updatePreview(sheet) { const prev = sheet.querySelector('#sheetPreview'); if (prev) prev.innerHTML = renderPreviewBubble(); }
+
+function updatePreview(sheet) { 
+  const prev = sheet.querySelector('#sheetPreview'); 
+  if (prev) prev.innerHTML = renderPreviewBubble(); 
+}
 
 function getSheet() {
-  const old = document.getElementById('bottomSheet'); const fresh = document.createElement('div');
+  const old = document.getElementById('bottomSheet'); 
+  const fresh = document.createElement('div');
   fresh.id = 'bottomSheet'; fresh.className = 'bottom-sheet'; old.parentNode.replaceChild(fresh, old); return fresh;
 }
 
@@ -619,7 +630,11 @@ function openConfirmDeleteSheet(id, label) {
   overlay.classList.add('open'); sheet.classList.add('open');
 }
 
-function closeSheet() { document.getElementById('sheetOverlay').classList.remove('open'); document.getElementById('bottomSheet').classList.remove('open'); state.sheet.open = false; state.editId = null; }
+function closeSheet() { 
+  document.getElementById('sheetOverlay').classList.remove('open'); 
+  document.getElementById('bottomSheet').classList.remove('open'); 
+  state.sheet.open = false; state.editId = null; 
+}
 
 function createPraxis(activate) {
   const label = state.sheet.label.trim(); if (!label) { document.getElementById('sheetInput')?.focus(); return; }
@@ -635,7 +650,7 @@ function savePraxis() {
 }
 
 /* ══════════════════════════════════════════
-   PAGE : HOME SCREEN (ACCUEIL)
+   PAGE : ÉCRAN D'ACCUEIL LOGIQUE
 ══════════════════════════════════════════ */
 const ACCUEIL_KEY = () => 'praxeo_accueil_' + todayKeyStatic();
 function todayKeyStatic() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -848,10 +863,16 @@ function initAccueilDragDrop(el) {
 }
 
 /* ══════════════════════════════════════════
-   PICKER & SELECTION CORRECTION
+   SÉLECTEUR D'AJOUT (PICKER)
 ══════════════════════════════════════════ */
+let pickerSection = null;
+let pickerSelected = new Set();
+
 function openPickerSheet(section) {
-  pickerSection = section; pickerSelected = new Set(); const dow = todayDow();
+  pickerSection = section; 
+  pickerSelected = new Set(); 
+  const dow = todayDow();
+  
   const available = state.praxis.filter(p => {
     if (p.type !== section) return false;
     if (section === 'routine') return p.days && !p.days.includes(dow) ? false : !(p.active && !accueil.routinesSkipped[p.id] && !accueil.routinesDone[p.id]);
@@ -862,19 +883,33 @@ function openPickerSheet(section) {
 
   const sheet = getSheet();
   sheet.innerHTML = `
-    <div class="sheet-handle"></div><div class="sheet-title">${TYPE_LABELS[section]}</div>
-    <div class="picker-bubble-list" id="pickerList">${available.length ? available.map(p => pickerItemHTML(p)).join('') : `<div class="picker-empty">Toutes les praxis sont déjà présentes</div>`}</div>
-    <div class="sheet-actions" style="margin-top:16px;"><button class="btn-sheet btn-cancel" id="btnPickerCancel">Annuler</button><button class="btn-sheet btn-activate" id="btnPickerValidate">Valider</button></div>
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">${TYPE_LABELS[section]}</div>
+    <div class="picker-bubble-list" id="pickerList">
+      ${available.length ? available.map(p => pickerItemHTML(p)).join('') : `<div class="picker-empty">Toutes les praxis sont déjà présentes</div>`}
+    </div>
+    <div class="sheet-actions" style="margin-top:16px;">
+      <button class="btn-sheet btn-cancel" id="btnPickerCancel">Annuler</button>
+      <button class="btn-sheet btn-activate" id="btnPickerValidate">Valider</button>
+    </div>
   `;
 
   sheet.querySelectorAll('.picker-item').forEach(item => {
     item.addEventListener('click', () => {
-      const id = item.dataset.id; if (pickerSelected.has(id)) { pickerSelected.delete(id); item.classList.remove('picker-selected'); } else { pickerSelected.add(id); item.classList.add('picker-selected'); }
+      const id = item.dataset.id; 
+      if (pickerSelected.has(id)) { 
+        pickerSelected.delete(id); 
+        item.classList.remove('picker-selected'); 
+      } else { 
+        pickerSelected.add(id); 
+        item.classList.add('picker-selected'); 
+      }
     });
   });
   sheet.querySelector('#btnPickerCancel')?.addEventListener('click', closeSheet);
   sheet.querySelector('#btnPickerValidate')?.addEventListener('click', validatePicker);
-  document.getElementById('sheetOverlay').classList.add('open'); sheet.classList.add('open');
+  document.getElementById('sheetOverlay').classList.add('open'); 
+  sheet.classList.add('open');
 }
 
 function pickerItemHTML(p) {
@@ -889,13 +924,14 @@ function validatePicker() {
     else if (pickerSection === 'tache') { delete accueil.tachesRemoved[id]; delete accueil.tachesDone[id]; }
     else if (pickerSection === 'long')  { delete accueil.longsRemoved[id]; }
   });
-  saveState();    // 👈 SAUVEGARDE L'ACTIVATION DE LA TÂCHE DE MANIÈRE PERMANENTE
-  saveAccueil();  // 👈 SAUVEGARDE L'ÉTAT JOURNALIER DE L'ACCUEIL
-  closeSheet(); renderAccueil();
+  saveState();    // Sauvegarde l'activation dans state.praxis
+  saveAccueil();  // Sauvegarde la visibilité sur la grille d'accueil
+  closeSheet(); 
+  renderAccueil();
 }
 
 /* ══════════════════════════════════════════
-   GAUGE SHEET & NOTES & MENU & STATS
+   PANNEAUX COMPLÉMENTAIRES & UTILS
 ══════════════════════════════════════════ */
 function openGaugeSheet(id) {
   const p = state.praxis.find(x => x.id === id); if (!p) return;
@@ -921,21 +957,104 @@ function openNoteSheet() {
   sheet.querySelectorAll('.note-hist-bubble').forEach(b => b.addEventListener('click', () => addNote(b.textContent.trim().toUpperCase())));
   document.getElementById('sheetOverlay').classList.add('open'); sheet.classList.add('open'); setTimeout(() => input.focus(), 350);
 }
-function pickNoteColor() { const used = new Set(state.notes.map(n => n.color)); const available = COLORS.filter(c => !used.has(c)); return (available.length ? available : COLORS)[Math.floor(Math.random() * (available.length ? available.length : COLORS.length))]; }
 
-function explodeBubble(el, cb) { el.classList.add('bubble-explode'); el.addEventListener('animationend', () => { el.style.display='none'; if (cb) cb(); }, { once:true }); }
+function pickNoteColor() { 
+  const used = new Set(state.notes.map(n => n.color)); 
+  const available = COLORS.filter(c => !used.has(c)); 
+  return (available.length ? available : COLORS)[Math.floor(Math.random() * (available.length ? available.length : COLORS.length))]; 
+}
 
+function explodeBubble(el, cb) { 
+  el.classList.add('bubble-explode'); 
+  el.addEventListener('animationend', () => { el.style.display='none'; if (cb) cb(); }, { once:true }); 
+}
+
+/* ══════════════════════════════════════════
+   MENU 3 POINTS (PARAMÈTRES GLOBAUX)
+══════════════════════════════════════════ */
 function openMenu() {
   const sheet = getSheet();
-  sheet.innerHTML = `<div class="sheet-handle"></div><div class="menu-list"><button class="menu-item${state.frozen?' menu-item-frozen':''}" id="menuFreeze"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07"/></svg>${state.frozen ? 'Reprendre l\'application' : 'Geler l\'application'}</button><div class="menu-divider"></div><button class="menu-item" id="menuExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exporter les données</button><button class="menu-item" id="menuImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importer les données</button><input type="file" id="importFile" accept=".json" style="display:none;"><div class="menu-divider"></div><button class="menu-item menu-item-danger" id="menuResetStats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.61"/></svg>Réinitialiser les stats</button></div><div class="sheet-actions" style="margin-top:12px;"><button class="btn-sheet btn-cancel" id="menuClose">Fermer</button></div>`;
+  
+  sheet.innerHTML = `
+    <div class="sheet-handle"></div>
+    <div class="menu-list">
+      <button class="menu-item ${state.frozen ? 'menu-item-frozen' : ''}" id="menuFreeze">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+          <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07"/>
+        </svg>
+        ${state.frozen ? "Reprendre l'application" : "Geler l'application"}
+      </button>
+      <div class="menu-divider"></div>
+      <button class="menu-item" id="menuExport">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Exporter les données
+      </button>
+      <button class="menu-item" id="menuImport">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Importer les données
+      </button>
+      <input type="file" id="importFile" accept=".json" style="display:none;">
+      <div class="menu-divider"></div>
+      <button class="menu-item menu-item-danger" id="menuResetStats">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.61"/>
+        </svg>
+        Réinitialiser les stats
+      </button>
+    </div>
+    <div class="sheet-actions" style="margin-top:12px;">
+      <button class="btn-sheet btn-cancel" id="menuClose">Fermer</button>
+    </div>
+  `;
 
   sheet.querySelector('#menuClose').addEventListener('click', closeSheet);
-  sheet.querySelector('#menuFreeze').addEventListener('click', () => { closeSheet(); if (state.frozen) { state.frozen = false; renderAccueil(); } else { openConfirmSheet('Geler l\'application ?', 'Les routines ne seront plus comptabilisées. Le bloc-notes reste actif.', 'Geler', () => { state.frozen = true; renderAccueil(); }); } });
-  sheet.querySelector('#menuExport').addEventListener('click', () => { closeSheet(); exportData(); });
-  sheet.querySelector('#menuImport').addEventListener('click', () => { sheet.querySelector('#importFile').click(); });
-  sheet.querySelector('#importFile').addEventListener('change', e => { const file = e.target.files[0]; if (!file) return; closeSheet(); const reader = new FileReader(); reader.onload = ev => { try { const data = JSON.parse(ev.target.result); openConfirmSheet('Importer les données ?', 'Les données actuelles seront remplacées.', 'Importer', () => importData(data)); } catch(err) { alert('Fichier invalide.'); } }; reader.readAsText(file); });
-  sheet.querySelector('#menuResetStats').addEventListener('click', () => { closeSheet(); openConfirmSheet('Réinitialiser les stats ?', 'Toutes les statistiques seront effacées. Les praxis sont conservées.', 'Réinitialiser', () => { state.frozenDays = []; state.frozen = false; state.statsHistory = {}; state.statsRecord = 0; saveState(); renderStats(); }); });
-  document.getElementById('sheetOverlay').classList.add('open'); sheet.classList.add('open');
+  
+  sheet.querySelector('#menuFreeze').addEventListener('click', () => { 
+    closeSheet(); 
+    if (state.frozen) { 
+      state.frozen = false; 
+      renderAccueil(); 
+    } else { 
+      openConfirmSheet('Geler l\'application ?', 'Les routines ne seront plus comptabilisées. Le bloc-notes reste actif.', 'Geler', () => { state.frozen = true; renderAccueil(); }); 
+    } 
+  });
+  
+  sheet.querySelector('#menuExport').addEventListener('click', () => { 
+    closeSheet(); 
+    exportData(); 
+  });
+  
+  sheet.querySelector('#menuImport').addEventListener('click', () => { 
+    sheet.querySelector('#importFile').click(); 
+  });
+  
+  sheet.querySelector('#importFile').addEventListener('change', e => { 
+    const file = e.target.files[0]; 
+    if (!file) return; 
+    closeSheet(); 
+    const reader = new FileReader(); 
+    reader.onload = ev => { 
+      try { 
+        const data = JSON.parse(ev.target.result); 
+        openConfirmSheet('Importer les données ?', 'Les données actuelles seront remplacées.', 'Importer', () => importData(data)); 
+      } catch(err) { 
+        alert('Fichier invalide.'); 
+      } 
+    }; 
+    reader.readAsText(file); 
+  });
+  
+  sheet.querySelector('#menuResetStats').addEventListener('click', () => { 
+    closeSheet(); 
+    openConfirmSheet('Réinitialiser les stats ?', 'Toutes les statistiques seront effacées. Les praxis sont conservées.', 'Réinitialiser', () => { state.frozenDays = []; state.frozen = false; state.statsHistory = {}; state.statsRecord = 0; saveState(); renderStats(); }); 
+  });
+
+  document.getElementById('sheetOverlay').classList.add('open'); 
+  sheet.classList.add('open');
 }
 
 function openConfirmSheet(title, sub, confirmLabel, onConfirm) {
@@ -948,9 +1067,16 @@ function exportData() {
   const data = { version: '1.0', exportedAt: new Date().toISOString(), praxis: state.praxis, frozen: state.frozen, frozenDays: state.frozenDays, notes: state.notes, noteHistory: state.noteHistory, statsHistory: state.statsHistory || {}, statsRecord: state.statsRecord || 0 };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `praxeo_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);
 }
-function importData(data) { if (data.praxis) state.praxis = data.praxis; if (data.frozenDays) state.frozenDays = data.frozenDays; if (data.notes) state.notes = data.notes; if (data.noteHistory) state.noteHistory = data.noteHistory; if (data.frozen !== undefined) state.frozen = data.frozen; if (data.statsHistory) state.statsHistory = data.statsHistory; if (data.statsRecord !== undefined) state.statsRecord = data.statsRecord; saveState(); navigate(state.currentPage); }
 
+function importData(data) { 
+  if (data.praxis) state.praxis = data.praxis; if (data.frozenDays) state.frozenDays = data.frozenDays; if (data.notes) state.notes = data.notes; if (data.noteHistory) state.noteHistory = data.noteHistory; if (data.frozen !== undefined) state.frozen = data.frozen; if (data.statsHistory) state.statsHistory = data.statsHistory; if (data.statsRecord !== undefined) state.statsRecord = data.statsRecord; saveState(); navigate(state.currentPage); 
+}
+
+/* ══════════════════════════════════════════
+   PAGE : STATISTIQUES & CHARTS
+══════════════════════════════════════════ */
 function getHistory() { return state.statsHistory || {}; }
+
 function computeStreak(history) {
   const today = new Date(); let streak=0; const todayStr = localDateKey(today);
   for (let d=0; d<=83; d++) {
@@ -962,19 +1088,19 @@ function computeStreak(history) {
 
 function renderStats() {
   const el=document.getElementById('page-stats'), today=new Date(); const history=getHistory(), streak=computeStreak(history), record=state.statsRecord||0; const MONTHS=['Jan','Fév','Mar','Avr','Mai','Jui','Jul','Aoû','Sep','Oct','Nov','Déc'];
-  let total30=0, done30=0; for (let d=0;d<30;d++) { const date=new Date(today); date.setDate(date.getDate()-d); const h=history[localDateKey(date)]; if(h&&h.total>0){total30+=h.total;done30+=h.done;} }
+  let total30=0, done30=0; for (let d=0; d<30; d++) { const date=new Date(today); date.setDate(date.getDate()-d); const h=history[localDateKey(date)]; if(h&&h.total>0){total30+=h.total;done30+=h.done;} }
   const rate30=total30>0?Math.round(done30/total30*100):0; const totalFull=Object.values(history).filter(h=>h.total>0&&h.done===h.total).length;
   const WEEKS=20, todayDow=(today.getDay()+6)%7; let hmHTML=`<div class="hm-wrap"><div class="hm-days">${['L','M','M','J','V','S','D'].map(d=>`<div class="hm-day-lbl">${d}</div>`).join('')}</div><div class="hm-cols">`;
   let lastMonth=-1;
-  for (let w=0;w<WEEKS;w++) {
+  for (let w=0; w<WEEKS; w++) {
     hmHTML+=`<div class="hm-col">`; const startMonday=new Date(today); startMonday.setDate(today.getDate()-todayDow-(WEEKS-1-w)*7); const m=startMonday.getMonth(); const monthLbl=(m!==lastMonth&&startMonday.getDate()<=7)?MONTHS[m]:''; if(monthLbl)lastMonth=m;
     hmHTML+=`<div class="hm-month">${monthLbl}</div>`;
-    for (let day=0;day<7;day++) { const cellD=new Date(startMonday); cellD.setDate(startMonday.getDate()+day); const isFuture = cellD > today; const isFrozen = state.frozenDays.includes(localDateKey(cellD)); const h = history[localDateKey(cellD)]; let cls='hm-cell'; if (isFuture) cls+=' hm-future'; else if (isFrozen) cls+=' hm-frozen'; else if(!h||h.total===0) cls+=' hm-empty'; else if(h.done===h.total) cls+=' hm-full'; else if(h.done>0) cls+=' hm-partial'; else cls+=' hm-none'; hmHTML+=`<div class="${cls}"></div>`; }
+    for (let day=0; day<7; day++) { const cellD=new Date(startMonday); cellD.setDate(startMonday.getDate()+day); const isFuture = cellD > today; const isFrozen = state.frozenDays.includes(localDateKey(cellD)); const h = history[localDateKey(cellD)]; let cls='hm-cell'; if (isFuture) cls+=' hm-future'; else if (isFrozen) cls+=' hm-frozen'; else if(!h||h.total===0) cls+=' hm-empty'; else if(h.done===h.total) cls+=' hm-full'; else if(h.done>0) cls+=' hm-partial'; else cls+=' hm-none'; hmHTML+=`<div class="${cls}"></div>`; }
     hmHTML+=`</div>`;
   }
   hmHTML+=`</div></div>`;
 
-  const routines=state.praxis.filter(p=>p.type==='routine'&&p.active);
+  const routines=state.praxis.filter(p=>p.type==='routine' && p.active);
   const praxisStats=routines.map(p => {
     let pDone=0, pTotal=0, pStreak=0;
     for (let d=0; d<30; d++) { const date = new Date(today); date.setDate(date.getDate()-d); const key = localDateKey(date); const h = history[key]; if (!h || h.total === 0) continue; if (p.days && !p.days.includes(((date.getDay()+6)%7)+1)) continue; pTotal++; if (h.ids && h.ids.includes(p.id)) pDone++; }
@@ -983,8 +1109,21 @@ function renderStats() {
     return { ...p, rate, streak: pStreak };
   }).sort((a,b)=>a.label.localeCompare(b.label,'fr',{sensitivity:'base'}));
 
-  el.innerHTML=`<div class="encart-section fade-in"><div class="section-label">Série en cours</div><div class="encart stats-streak-encart"><div class="stats-streak-row"><div class="stats-streak-left"><div class="stats-streak-number">${streak}</div><div class="stats-streak-label">jours consécutifs</div><div class="stats-mini-row"><div class="stats-mini"><div class="stats-mini-val">${record}</div><div class="stats-mini-lbl">Record</div></div><div class="stats-mini"><div class="stats-mini-val">${rate30}%</div><div class="stats-mini-lbl">30 jours</div></div><div class="stats-mini"><div class="stats-mini-val">${totalFull}</div><div class="stats-mini-lbl">Total</div></div></div></div><div class="stats-laurier"><img src="couronne.svg" alt="Couronne" class="laurier-img" style="opacity:${record>0?Math.min(0.25+streak/record*0.75,1).toFixed(2):'0.25'};"></div></div></div></div><div class="encart-section fade-in" style="animation-delay:.05s"><div class="section-label">Historique</div><div class="encart">${hmHTML}<div class="hm-legend"><div class="hm-legend-cell hm-none"></div><span class="hm-legend-lbl">Aucune</span><div class="hm-legend-cell hm-partial"></div><span class="hm-legend-lbl">Partielle</span><div class="hm-legend-cell hm-full"></div><span class="hm-legend-lbl">Complète</span></div></div></div><div class="encart-section fade-in" style="animation-delay:.1s"><div class="section-label">Par praxis</div><div class="encart">${praxisStats.map((p,i)=>`${i>0?'<div class="stats-divider"></div>':''}<div class="stats-praxis-row"><div class="stats-dot" style="background:${p.color};"></div><div class="stats-praxis-name">${p.label}</div><div class="stats-praxis-streak">${p.streak}j</div><div class="stats-bar-wrap"><div class="stats-bar" style="width:${p.rate}%;background:${p.color};"></div></div><div class="stats-praxis-rate">${p.rate}%</div></div>`).join('')}</div></div><div class="stats-help-row fade-in"><button class="stats-help-btn" id="statsHelpBtn">?</button></div>`;
+  el.innerHTML=`<div class="encart-section fade-in"><div class="section-label">Série en cours</div><div class="encart stats-streak-encart"><div class="stats-streak-row"><div class="stats-streak-left"><div class="stats-streak-number">${streak}</div><div class="stats-streak-label">jours consécutifs</div><div class="stats-mini-row"><div class="stats-mini"><div class="stats-mini-val">${record}</div><div class="stats-mini-lbl">Record</div></div><div class="stats-mini"><div class="stats-mini-val">${rate30}%</div><div class="stats-mini-lbl">30 jours</div></div><div class="stats-mini"><div class="stats-mini-val">${totalFull}</div><div class="stats-mini-lbl">Total</div></div></div></div><div class="stats-laurier"><img src="couronne.svg" alt="Couronne" class="laurier-img" style="opacity:${record>0?Math.min(0.25+streak/record*0.75,1).toFixed(2):'0.25'};"></div></div></div></div><div class="encart-section fade-in" style="animation-delay:.05s"><div class="section-label">Historique</div><div class="encart">${hmHTML}<div class="hm-legend"><div class="hm-legend-cell hm-none"></div><span class="hm-legend-lbl">Aucune</span><div class="hm-legend-cell hm-partial"></div><span class="hm-legend-lbl">Partielle</span><div class="hm-legend-cell hm-full"></div><span class="hm-legend-lbl">Complète</span></div></div></div><div class="encart-section fade-in" style="animation-delay:.1s"><div class="section-label">Par praxis</div><div class="encart">${gridStatsPraxis(praxisStats)}</div></div><div class="stats-help-row fade-in"><button class="stats-help-btn" id="statsHelpBtn">?</button></div>`;
   document.getElementById('statsHelpBtn').addEventListener('click', openStatsHelp);
+}
+
+function gridStatsPraxis(praxisStats) {
+  return praxisStats.map((p,i) => `
+    ${i > 0 ? '<div class="stats-divider"></div>' : ''}
+    <div class="stats-praxis-row">
+      <div class="stats-dot" style="background:${p.color};"></div>
+      <div class="stats-praxis-name">${p.label}</div>
+      <div class="stats-praxis-streak">${p.streak}j</div>
+      <div class="stats-bar-wrap"><div class="stats-bar" style="width:${p.rate}%;background:${p.color};"></div></div>
+      <div class="stats-praxis-rate">${p.rate}%</div>
+    </div>
+  `).join('');
 }
 
 function openStatsHelp() {
@@ -992,7 +1131,7 @@ function openStatsHelp() {
   sheet.querySelector('#btnHelpClose').addEventListener('click', closeSheet); document.getElementById('sheetOverlay').classList.add('open'); sheet.classList.add('open');
 }
 
-/* ── REFRESH ON APP FOREGROUND ── */
+/* ── RAFRAÎCHISSEMENT DE SÉCURITÉ AU RETOUR SUR L'APP ── */
 (function() {
   let lastDay = todayKeyStatic();
   document.addEventListener('visibilitychange', () => {
