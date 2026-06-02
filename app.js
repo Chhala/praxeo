@@ -61,11 +61,7 @@ function saveState() {
       statsHistory: state.statsHistory || {},
       statsRecord:  state.statsRecord  || 0,
     };
-    const json = JSON.stringify(snap);
-    localStorage.setItem(STORAGE_KEY, json);
-    // Vérification : on relit pour confirmer l'écriture
-    const verify = localStorage.getItem(STORAGE_KEY);
-    if (!verify) console.error('[Praxeo] saveState : écriture non confirmée');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
   } catch(e) { console.error('[Praxeo] saveState échoué :', e); }
 }
 
@@ -107,6 +103,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadAccueil();
   recalibrateTodayStats();
   setTimeout(() => {
+    try {
     document.getElementById('splash').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     navigate('accueil');
@@ -118,6 +115,11 @@ window.addEventListener('DOMContentLoaded', () => {
         document.documentElement.style.setProperty('--header-total-height', totalH + 'px');
       }
     });
+    } catch(bootErr) {
+      console.error('[Praxeo] Boot error:', bootErr);
+      document.getElementById('splash').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+    }
   }, 1800);
   initNav();
   initSheet();
