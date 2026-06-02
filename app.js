@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════
-   PRAXEO — app.js  v2.0
+   PRAXEO — app.js
 ═══════════════════════════════════════ */
 'use strict';
 
@@ -47,8 +47,7 @@ const PRAXIS_DATA = [
 ];
 
 /* ── Persistance localStorage ── */
-const STORAGE_KEY     = 'praxeo_state_v2';
-const STORAGE_KEY_OLD = 'praxeo_state_v1';
+const STORAGE_KEY = 'praxeo_state_v1';
 
 function saveState() {
   try {
@@ -62,29 +61,28 @@ function saveState() {
       statsRecord:  state.statsRecord  || 0,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
-  } catch(e) { console.error('[Praxeo] saveState échoué :', e); }
+  } catch(e) { /* quota dépassé — silencieux */ }
 }
 
 function loadState() {
-  // Essaye d'abord la clé v2, puis migre depuis v1 si absente
-  function parseSnap(raw) {
-    try { return raw ? JSON.parse(raw) : null; } catch(e) { return null; }
-  }
-  const snap = parseSnap(localStorage.getItem(STORAGE_KEY))
-            || parseSnap(localStorage.getItem(STORAGE_KEY_OLD));
-  if (!snap) return false;
-  state.frozen       = snap.frozen       || false;
-  state.frozenDays   = snap.frozenDays   || [];
-  state.notes        = Array.isArray(snap.notes) ? snap.notes : [];
-  state.noteHistory  = snap.noteHistory  || [];
-  state.statsHistory = snap.statsHistory || {};
-  state.statsRecord  = snap.statsRecord  || 0;
-  if (snap.praxis && snap.praxis.length) {
-    state.praxis = snap.praxis;
-    saveState(); // persiste en v2
-    return true;
-  }
-  return false; // praxis vide → sera réinitialisé, statsHistory préservé
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const snap = JSON.parse(raw);
+    // Toujours restaurer statsHistory et les métadonnées, quelle que soit l'état de praxis
+    state.frozen       = snap.frozen       || false;
+    state.frozenDays   = snap.frozenDays   || [];
+    state.notes        = snap.notes        || [];
+    state.noteHistory  = snap.noteHistory  || [];
+    state.statsHistory = snap.statsHistory || {};
+    state.statsRecord  = snap.statsRecord  || 0;
+    if (snap.praxis && snap.praxis.length) {
+      state.praxis = snap.praxis;
+      return true;
+    }
+    return false; // praxis vide → sera réinitialisé, mais statsHistory est préservé
+  } catch(e) { /* données corrompues — silencieux */ }
+  return false;
 }
 
 function loadPraxis() {
@@ -103,7 +101,6 @@ window.addEventListener('DOMContentLoaded', () => {
   loadAccueil();
   recalibrateTodayStats();
   setTimeout(() => {
-    try {
     document.getElementById('splash').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     navigate('accueil');
@@ -115,11 +112,6 @@ window.addEventListener('DOMContentLoaded', () => {
         document.documentElement.style.setProperty('--header-total-height', totalH + 'px');
       }
     });
-    } catch(bootErr) {
-      console.error('[Praxeo] Boot error:', bootErr);
-      document.getElementById('splash').classList.add('hidden');
-      document.getElementById('app').classList.remove('hidden');
-    }
   }, 1800);
   initNav();
   initSheet();
@@ -534,6 +526,7 @@ function deletePraxis(id) {
   state.wiggleId = null;
   // Si c'était une routine active, recalculer les stats du jour
   if (removed.type === 'routine' && removed.active) recordRoutineDone();
+  else saveState(); // Sauvegarde pour les tâches et objectifs long terme
   renderPraxis();
 }
 
@@ -654,6 +647,10 @@ function initSheet() {
   document.body.appendChild(overlay);
   document.body.appendChild(sheet);
 }
+
+/* ── Variables globales pour le sélecteur (Picker) ── */
+let pickerSection = null;
+let pickerSelected = new Set();
 
 function buildSheetHTML(editMode) {
   const s = state.sheet;
@@ -838,6 +835,7 @@ function createPraxis(activate) {
     ...(state.sheet.type === 'routine' ? { days: [...state.sheet.days] } : {}),
     ...(state.sheet.type === 'long'    ? { progress: 0 } : {})
   });
+  saveState();
   closeSheet();
   renderPraxis();
 }
@@ -851,6 +849,7 @@ function savePraxis() {
   p.color = state.sheet.color;
   p.type  = state.sheet.type;
   if (state.sheet.type === 'routine') p.days = [...state.sheet.days];
+  saveState();
   closeSheet();
   renderPraxis();
 }
@@ -876,7 +875,6 @@ function loadAccueil() {
       accueil.tachesDone      = s.tachesDone      || {};
       accueil.tachesRemoved   = s.tachesRemoved   || {};
       accueil.longsRemoved    = s.longsRemoved     || {};
-      // notes est géré dans state, pas dans la clé journalière
     }
   } catch(e) {}
 }
@@ -889,7 +887,6 @@ function saveAccueil() {
       tachesDone:      accueil.tachesDone,
       tachesRemoved:   accueil.tachesRemoved,
       longsRemoved:    accueil.longsRemoved,
-      // notes est dans state, persisté par saveState()
     };
     localStorage.setItem(ACCUEIL_KEY(), JSON.stringify(snap));
     // Nettoyer les clés d'autres jours (garder 7 jours max)
@@ -1028,13 +1025,8 @@ function renderAccueilBubble(p, type) {
   const wiggling  = accueil.wiggleId === p.id && accueil.wiggleType === type;
   const gaugeEdit = accueil.gaugeEditId === p.id;
 
-  // Badge suppression — toujours à droite
   const delBadge = wiggling
     ? `<div class="acc-badge acc-badge-delete" data-id="${p.id}" data-type="${type}">−</div>` : '';
-
-  // Badge édition jauge — à gauche du badge suppression (donc rendu en premier pour long terme)
-  const editGauge = (wiggling && type === 'long')
-    ? `<div class="acc-badge acc-badge-edit" data-id="${p.id}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg></div>` : '';
 
   if (type === 'routine') {
     return `<div class="bubble bubble-routine${wiggling?' acc-wiggle':''}"
@@ -1052,7 +1044,6 @@ function renderAccueilBubble(p, type) {
              </div>`;
   }
   if (type === 'long') {
-    // Badges groupés côte à côte à droite
     const badges = wiggling ? `
       <div class="acc-badges-group">
         <div class="acc-badge acc-badge-edit" data-id="${p.id}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><path d="M4 20l3-1L19 7a2 2 0 00-3-3L4 16l-1 4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg></div>
@@ -1352,10 +1343,6 @@ function initAccueilDragDrop(el) {
   });
 }
 
-/* ── Variables globales pour le sélecteur (Picker) ── */
-let pickerSection = null;
-let pickerSelected = new Set();
-
 function openPickerSheet(section) {
   pickerSection  = section;
   pickerSelected = new Set();
@@ -1422,6 +1409,8 @@ function validatePicker() {
     else if (pickerSection === 'tache') { delete accueil.tachesRemoved[id]; delete accueil.tachesDone[id]; }
     else if (pickerSection === 'long')  { delete accueil.longsRemoved[id]; }
   });
+  saveState();
+  saveAccueil();
   closeSheet();
   renderAccueil();
 }
@@ -1488,7 +1477,6 @@ function openGaugeSheet(id) {
 /* ══════════════════════════════════════════
    NOTE SHEET
 ══════════════════════════════════════════ */
-/* ── Couleur note sans doublon ── */
 function pickNoteColor() {
   const used = new Set(state.notes.map(n => n.color));
   const available = COLORS.filter(c => !used.has(c));
@@ -1580,7 +1568,7 @@ function openMenu() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
-        Importer les données
+        Le transfert de données
       </button>
       <input type="file" id="importFile" accept=".json" style="display:none;">
       <div class="menu-divider"></div>
