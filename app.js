@@ -858,7 +858,6 @@ function createPraxis(activate) {
     ...(state.sheet.type === 'routine' ? { days: [...state.sheet.days] } : {}),
     ...(state.sheet.type === 'long'    ? { progress: 0 } : {})
   });
-  saveState();
   closeSheet();
   renderPraxis();
 }
@@ -872,7 +871,6 @@ function savePraxis() {
   p.color = state.sheet.color;
   p.type  = state.sheet.type;
   if (state.sheet.type === 'routine') p.days = [...state.sheet.days];
-  saveState();
   closeSheet();
   renderPraxis();
 }
@@ -957,9 +955,11 @@ function recalibrateTodayStats() {
   const allActive = state.praxis.filter(p =>
     p.type === 'routine' && p.active && (!p.days || p.days.includes(dow))
   );
-  const doneIds = Object.keys(accueil.routinesDone);
-  const done = doneIds.filter(id => allActive.some(p => p.id === id)).length;
-  const total = allActive.length;
+  const skippedIds = Object.keys(accueil.routinesSkipped);
+  const applicable  = allActive.filter(p => !skippedIds.includes(p.id));
+  const doneIds     = Object.keys(accueil.routinesDone);
+  const done        = doneIds.filter(id => applicable.some(p => p.id === id)).length;
+  const total       = applicable.length;
   if (entry.done !== done || entry.total !== total) {
     state.statsHistory[key] = { done, total, ids: doneIds };
     saveState();
@@ -972,9 +972,11 @@ function recordRoutineDone() {
   const allActive = state.praxis.filter(p =>
     p.type === 'routine' && p.active && (!p.days || p.days.includes(dow))
   );
-  const doneIds = Object.keys(accueil.routinesDone);
-  const done    = doneIds.filter(id => allActive.some(p => p.id === id)).length;
-  const total   = allActive.length;
+  const skippedIds = Object.keys(accueil.routinesSkipped);
+  const applicable  = allActive.filter(p => !skippedIds.includes(p.id));
+  const doneIds     = Object.keys(accueil.routinesDone);
+  const done        = doneIds.filter(id => applicable.some(p => p.id === id)).length;
+  const total       = applicable.length;
   if (!state.statsHistory) state.statsHistory = {};
   state.statsHistory[key] = { done, total, ids: doneIds };
   // Mettre à jour le record de série
@@ -1445,6 +1447,8 @@ function validatePicker() {
     else if (pickerSection === 'tache') { delete accueil.tachesRemoved[id]; delete accueil.tachesDone[id]; }
     else if (pickerSection === 'long')  { delete accueil.longsRemoved[id]; }
   });
+  saveState();
+  saveAccueil();
   closeSheet();
   renderAccueil();
 }
