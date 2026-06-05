@@ -961,7 +961,7 @@ function recalibrateTodayStats() {
   const done        = doneIds.filter(id => applicable.some(p => p.id === id)).length;
   const total       = applicable.length;
   if (entry.done !== done || entry.total !== total) {
-    state.statsHistory[key] = { done, total, ids: doneIds };
+    state.statsHistory[key] = { done, total, ids: doneIds, skipped: skippedIds };
     saveState();
   }
 }
@@ -978,7 +978,7 @@ function recordRoutineDone() {
   const done        = doneIds.filter(id => applicable.some(p => p.id === id)).length;
   const total       = applicable.length;
   if (!state.statsHistory) state.statsHistory = {};
-  state.statsHistory[key] = { done, total, ids: doneIds };
+  state.statsHistory[key] = { done, total, ids: doneIds, skipped: skippedIds };
   // Mettre à jour le record de série
   const streak = computeStreak(state.statsHistory);
   if (streak > (state.statsRecord || 0)) state.statsRecord = streak;
@@ -1447,6 +1447,8 @@ function validatePicker() {
     else if (pickerSection === 'tache') { delete accueil.tachesRemoved[id]; delete accueil.tachesDone[id]; }
     else if (pickerSection === 'long')  { delete accueil.longsRemoved[id]; }
   });
+  saveState();
+  saveAccueil();
   closeSheet();
   renderAccueil();
 }
@@ -1816,6 +1818,7 @@ function renderStats() {
       if (!h || h.total === 0) continue;
       const dow = ((date.getDay()+6)%7)+1;
       if (p.days && !p.days.includes(dow)) continue;
+      if (h.skipped && h.skipped.includes(p.id)) continue;
       pTotal++;
       if (h.ids && h.ids.includes(p.id)) pDone++;
     }
@@ -1829,6 +1832,7 @@ function renderStats() {
       if (p.days && !p.days.includes(dow)) continue;
       if (key === todayStr && (!h || !(h.ids && h.ids.includes(p.id)))) continue;
       if (!h || h.total === 0) continue;
+      if (h.skipped && h.skipped.includes(p.id)) continue;
       if (h.ids && h.ids.includes(p.id)) pStreak++;
       else break;
     }
