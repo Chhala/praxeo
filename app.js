@@ -1447,8 +1447,6 @@ function validatePicker() {
     else if (pickerSection === 'tache') { delete accueil.tachesRemoved[id]; delete accueil.tachesDone[id]; }
     else if (pickerSection === 'long')  { delete accueil.longsRemoved[id]; }
   });
-  saveState();
-  saveAccueil();
   closeSheet();
   renderAccueil();
 }
