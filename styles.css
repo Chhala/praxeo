@@ -726,9 +726,9 @@ body {
 /* Bulle bloc-notes : minuscules, sans fond coloré, fond neutre */
 .bubble-note-style {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
-  padding: 6px 12px;
+  padding: 10px 16px;
   border-radius: var(--radius-bubble);
   white-space: nowrap;
   color: var(--text);

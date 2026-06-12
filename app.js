@@ -858,6 +858,7 @@ function createPraxis(activate) {
     ...(state.sheet.type === 'routine' ? { days: [...state.sheet.days] } : {}),
     ...(state.sheet.type === 'long'    ? { progress: 0 } : {})
   });
+  saveState();
   closeSheet();
   renderPraxis();
 }
@@ -871,6 +872,7 @@ function savePraxis() {
   p.color = state.sheet.color;
   p.type  = state.sheet.type;
   if (state.sheet.type === 'routine') p.days = [...state.sheet.days];
+  saveState();
   closeSheet();
   renderPraxis();
 }
