@@ -1632,13 +1632,14 @@ function openMenu() {
     closeSheet();
     if (state.frozen) {
       state.frozen = false;
+      saveState();
       renderAccueil();
     } else {
       openConfirmSheet(
         'Geler l\'application ?',
         'Les routines ne seront plus comptabilisées. Le bloc-notes reste actif.',
         'Geler',
-        () => { state.frozen = true; renderAccueil(); }
+        () => { state.frozen = true; saveState(); renderAccueil(); }
       );
     }
   });
