@@ -948,6 +948,11 @@ function localDateKey(date) {
 }
 
 function recalibrateTodayStats() {
+  // Si gelée, enregistrer le jour courant dans frozenDays
+  if (state.frozen) {
+    const fd = todayKey();
+    if (!state.frozenDays.includes(fd)) { state.frozenDays.push(fd); saveState(); }
+  }
   // Corrige l'entrée du jour si done ne correspond pas à routinesDone réel
   if (!state.statsHistory) return;
   const key = todayKey();
@@ -1639,7 +1644,7 @@ function openMenu() {
         'Geler l\'application ?',
         'Les routines ne seront plus comptabilisées. Le bloc-notes reste actif.',
         'Geler',
-        () => { state.frozen = true; saveState(); renderAccueil(); }
+        () => { state.frozen = true; const fd = todayKey(); if (!state.frozenDays.includes(fd)) state.frozenDays.push(fd); saveState(); renderAccueil(); }
       );
     }
   });
