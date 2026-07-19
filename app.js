@@ -1801,8 +1801,8 @@ function renderStats() {
     for (let day=0;day<7;day++) {
       const cellD=new Date(startMonday); cellD.setDate(startMonday.getDate()+day);
       const isFuture  = cellD > today;
-      const isFrozen  = state.frozenDays.includes(localDateKey(cellD));
       const h = history[localDateKey(cellD)];
+      const isFrozen  = state.frozenDays.includes(localDateKey(cellD)) || !!(h && h.frozen);
       let cls='hm-cell';
       if (isFuture)              cls+=' hm-future';
       else if (isFrozen)         cls+=' hm-frozen';
