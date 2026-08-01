@@ -948,10 +948,14 @@ function localDateKey(date) {
 }
 
 function recalibrateTodayStats() {
-  // Si gelée, enregistrer le jour courant dans frozenDays
+  // Si gelée, enregistrer le jour courant dans frozenDays ET statsHistory
   if (state.frozen) {
     const fd = todayKey();
-    if (!state.frozenDays.includes(fd)) { state.frozenDays.push(fd); saveState(); }
+    if (!state.frozenDays.includes(fd)) state.frozenDays.push(fd);
+    if (!state.statsHistory) state.statsHistory = {};
+    state.statsHistory[fd] = { done: 0, total: 0, ids: [], skipped: [], frozen: true };
+    saveState();
+    return;
   }
   // Corrige l'entrée du jour si done ne correspond pas à routinesDone réel
   if (!state.statsHistory) return;
@@ -1637,6 +1641,12 @@ function openMenu() {
     closeSheet();
     if (state.frozen) {
       state.frozen = false;
+      const todayStr = todayKey();
+      state.frozenDays = state.frozenDays.filter(d => d !== todayStr);
+      if (state.statsHistory && state.statsHistory[todayStr]) {
+        delete state.statsHistory[todayStr].frozen;
+      }
+      recalibrateTodayStats();
       saveState();
       renderAccueil();
     } else {
