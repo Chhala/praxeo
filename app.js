@@ -948,14 +948,10 @@ function localDateKey(date) {
 }
 
 function recalibrateTodayStats() {
-  // Si gelée, enregistrer le jour courant dans frozenDays ET statsHistory
+  // Si gelée, enregistrer le jour courant dans frozenDays
   if (state.frozen) {
     const fd = todayKey();
-    if (!state.frozenDays.includes(fd)) state.frozenDays.push(fd);
-    if (!state.statsHistory) state.statsHistory = {};
-    state.statsHistory[fd] = { done: 0, total: 0, ids: [], skipped: [], frozen: true };
-    saveState();
-    return;
+    if (!state.frozenDays.includes(fd)) { state.frozenDays.push(fd); saveState(); }
   }
   // Corrige l'entrée du jour si done ne correspond pas à routinesDone réel
   if (!state.statsHistory) return;
@@ -1641,12 +1637,6 @@ function openMenu() {
     closeSheet();
     if (state.frozen) {
       state.frozen = false;
-      const todayStr = todayKey();
-      state.frozenDays = state.frozenDays.filter(d => d !== todayStr);
-      if (state.statsHistory && state.statsHistory[todayStr]) {
-        delete state.statsHistory[todayStr].frozen;
-      }
-      recalibrateTodayStats();
       saveState();
       renderAccueil();
     } else {
@@ -1736,9 +1726,18 @@ function exportData() {
     praxis:       state.praxis,
     frozen:       state.frozen,
     frozenDays:   state.frozenDays,
+    notes:        state.notes,
     noteHistory:  state.noteHistory,
     statsHistory: state.statsHistory || {},
     statsRecord:  state.statsRecord  || 0,
+    accueilKey:   ACCUEIL_KEY(),
+    accueilData:  {
+      routinesDone:    accueil.routinesDone,
+      routinesSkipped: accueil.routinesSkipped,
+      tachesDone:      accueil.tachesDone,
+      tachesRemoved:   accueil.tachesRemoved,
+      longsRemoved:    accueil.longsRemoved,
+    },
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
@@ -1750,13 +1749,18 @@ function exportData() {
 }
 
 function importData(data) {
-  if (data.praxis)                state.praxis       = data.praxis;
-  if (data.frozenDays)            state.frozenDays   = data.frozenDays;
-  if (data.notes)                 { state.notes = data.notes; saveNotes(); }
-  if (data.noteHistory)           state.noteHistory  = data.noteHistory;
-  if (data.frozen !== undefined)  state.frozen       = data.frozen;
-  if (data.statsHistory)          state.statsHistory = data.statsHistory;
-  if (data.statsRecord !== undefined) state.statsRecord = data.statsRecord;
+  if (data.praxis)                    state.praxis       = data.praxis;
+  if (data.frozenDays)                state.frozenDays   = data.frozenDays;
+  if (Array.isArray(data.notes))      { state.notes = data.notes; saveNotes(); }
+  if (data.noteHistory)               state.noteHistory  = data.noteHistory;
+  if (data.frozen !== undefined)      state.frozen       = data.frozen;
+  if (data.statsHistory)              state.statsHistory = data.statsHistory;
+  if (data.statsRecord !== undefined) state.statsRecord  = data.statsRecord;
+  // Restaurer l'état journalier si la clé correspond au jour courant
+  if (data.accueilData && data.accueilKey === ACCUEIL_KEY()) {
+    localStorage.setItem(ACCUEIL_KEY(), JSON.stringify(data.accueilData));
+    loadAccueil();
+  }
   saveState();
   navigate(state.currentPage);
 }
@@ -1811,8 +1815,8 @@ function renderStats() {
     for (let day=0;day<7;day++) {
       const cellD=new Date(startMonday); cellD.setDate(startMonday.getDate()+day);
       const isFuture  = cellD > today;
+      const isFrozen  = state.frozenDays.includes(localDateKey(cellD));
       const h = history[localDateKey(cellD)];
-      const isFrozen  = state.frozenDays.includes(localDateKey(cellD)) || !!(h && h.frozen);
       let cls='hm-cell';
       if (isFuture)              cls+=' hm-future';
       else if (isFrozen)         cls+=' hm-frozen';
