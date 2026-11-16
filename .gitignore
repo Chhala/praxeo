@@ -1,0 +1,9 @@
+# Fichiers de travail locaux (non publiés)
+_stuff/
+app_prev.js
+
+# Systèmes / éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
