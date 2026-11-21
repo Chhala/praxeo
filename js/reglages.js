@@ -459,7 +459,8 @@ export function initReglages(options = {}) {
     const tete = e.target.closest('.ligne-tete');
     if (tete) {
       const c = tete.parentElement.dataset.section;
-      if (ouvertes.has(c)) ouvertes.delete(c); else ouvertes.add(c);
+      // une seule section ouverte à la fois : en ouvrir une referme les autres (21/11/2026)
+      if (ouvertes.has(c)) ouvertes.delete(c); else { ouvertes.clear(); ouvertes.add(c); }
       rendre();
       return;
     }
