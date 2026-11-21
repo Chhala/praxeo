@@ -2,6 +2,7 @@
 // Lot 0 : les praxis viennent de l'appareil ; chaque modification de la fiche est enregistrée.
 
 import * as donnees from './donnees.js';
+import { urgenceTache } from './moteur.js';
 import * as annuler from './annuler.js';
 import { ouvrirFeuille, fermerFeuille } from './feuille.js';
 
@@ -42,6 +43,10 @@ function joursCourts(jours) {
 // L'info temporelle, toujours visible à droite de la bulle
 function infoTemps(p) {
   if (p.section === 'long') return `${p.progression ?? 0} %`;
+  // rythmes réels (21/11/2026) : le 15 du mois, après la lessive, d'avril à juillet
+  if (p.jourDuMois) return `le ${p.jourDuMois} du mois`;
+  if (p.apres) return `après : ${p.apres.toLowerCase()}`;
+  if (p.mois) { const M = ['janv.', 'févr.', 'mars', 'avril', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']; return `${M[p.mois[0] - 1]} → ${M[p.mois[p.mois.length - 1] - 1]}`; }
   if (p.frequence) return `tous les ${p.frequence} j`;
   return joursCourts(p.jours);
 }
@@ -50,7 +55,7 @@ function infoTemps(p) {
 const der = (p) => donnees.derniereFois(p.id);
 
 // En retard : la dernière fois dépasse la fréquence, et elle n'est pas déjà au programme du jour
-const enRetard = (p) => !etat.dejaPrevue(p.libelle) && p.section !== 'inactives' && p.frequence && der(p) > p.frequence;
+const enRetard = (p) => !etat.dejaPrevue(p.libelle) && p.section === 'taches' && urgenceTache(p) > 1;
 
 function derniereFois(n) {
   if (n === undefined) return 'Jamais';
@@ -81,6 +86,7 @@ export function rendre() {
         <span class="praxis-droite">
           ${enRetard(p) ? '<button class="pastille-retard" type="button" data-retard="' + p.id + '">En retard</button>' : ''}
           <span class="praxis-info">${echapper(infoTemps(p))}</span>
+          ${p.duree ? `<span class="duree">${p.duree < 60 ? `${p.duree} min` : `${Math.floor(p.duree / 60)}h${p.duree % 60 ? String(p.duree % 60).padStart(2, '0') : ''}`}</span>` : ''}
         </span>
       </li>`).join('');
     return `
@@ -414,7 +420,8 @@ export function initPraxis({ ajouterAuProgramme, dejaPrevue }) {
     const tete = e.target.closest('.ligne-tete');
     if (tete && !etat.recherche) {
       const cle = tete.parentElement.dataset.section;
-      if (etat.ouvertes.has(cle)) etat.ouvertes.delete(cle); else etat.ouvertes.add(cle);
+      // une seule ligne ouverte à la fois, comme dans les Réglages (21/11/2026)
+      if (etat.ouvertes.has(cle)) etat.ouvertes.delete(cle); else { etat.ouvertes.clear(); etat.ouvertes.add(cle); }
       rendre();
     }
   });

@@ -19,7 +19,16 @@ let carnetOuvert = false;
 let semaineVue = 0;
 // Version installée (nom du cache du service worker) : pour savoir si une mise à jour est bien arrivée sur l'iPhone
 let versionAppli = '';
-try { caches.keys().then((k) => { versionAppli = (k.find((n) => n.startsWith('praxeo-v2-')) || '').replace('praxeo-v2-', ''); }); } catch { /* pas de cache */ }   // Ma semaine : 0 = cette semaine, 1 = la prochaine (glissement du doigt)
+// la version publiée (lue dans sw.js) ; hors ligne, celle du cache
+(async () => {
+  try {
+    const t = await (await fetch('./sw.js', { cache: 'no-store' })).text();
+    versionAppli = (t.match(/praxeo-v2-(\d+)/) || [])[1] || '';
+  } catch {
+    try { versionAppli = ((await caches.keys()).find((n) => n.startsWith('praxeo-v2-')) || '').replace('praxeo-v2-', ''); } catch { /* rien */ }
+  }
+  if (versionAppli && !document.getElementById('page-reglages')?.hidden) rendre();
+})();
 let apresImport = () => {};
 
 // ── Petits éléments ────────────────────────────
@@ -283,6 +292,9 @@ const SECTIONS = [
   ['donnees', 'Données', sectionDonnees],
 ];
 
+// Ouvre une section (après une mise à jour : Données, pour voir la version)
+export function ouvrirSection(cle) { ouvertes.clear(); ouvertes.add(cle); rendre(); }
+
 export function rendre() {
   $('#reglagesContenu').innerHTML = `<div class="lignes-reglages">${SECTIONS.map(([cle, nom, f]) => {
     const ouverte = ouvertes.has(cle);
@@ -352,6 +364,7 @@ async function mettreAJour(bouton) {
   if (navigator.onLine === false) { message('Pas de réseau', 'La mise à jour se fera quand tu seras connecté.'); return; }
   bouton.disabled = true;
   bouton.textContent = 'Mise à jour…';
+  try { sessionStorage.setItem('praxeoApresMaj', '1'); } catch { /* rien */ }   // au rechargement : retour sur Données
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
     if (reg) await reg.update();

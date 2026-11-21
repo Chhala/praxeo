@@ -3,7 +3,7 @@
 // pour que l'interface lise sans attendre ; chaque modification est écrite tout de suite sur l'appareil.
 
 import * as db from './db.js';
-import { ESTIMATIONS, PILIERS, SUPPRIMEES, normaliser, enPhrase } from './estimations.js';
+import { ESTIMATIONS, PILIERS, SUPPRIMEES, normaliser, enPhrase, HABITUDES_TACHES, CHAMPS_HABITUDES } from './estimations.js';
 import { PLANNING_DEFAUT, VACANCES_DEFAUT, MEMOIRE_DEPART, plagesFamille } from './contenu.js';
 
 const CLE_API = 'praxeo_cle_api';   // gardée à part, dans localStorage : exclue de l'export par construction
@@ -41,6 +41,21 @@ export async function charger() {
   if ((meta.memoireDepart || 0) < 3) await db.ecrire('memoire', MEMOIRE_DEPART);
   else if (NOUVEAUX[meta.memoireDepart]) await db.ecrire('memoire', MEMOIRE_DEPART.filter((f) => NOUVEAUX[meta.memoireDepart].includes(f.id)));
   if (meta.memoireDepart !== 5) await ecrireMeta('memoireDepart', 5);
+  // Rythmes réels des tâches (21/11/2026) : corrigés une fois dans les données déjà reprises de la v1
+  if ((meta.habitudesTaches || 0) < 2) {   // v2 : dîner à 19h30 y compris en famille
+    for (const p of await db.tout('praxis')) {
+      const cle = normaliser(p.libelle);
+      if (!HABITUDES_TACHES.includes(cle)) continue;
+      const est = ESTIMATIONS[cle];
+      const corrige = { ...p };
+      for (const c of CHAMPS_HABITUDES) { if (c in est) corrige[c] = est[c]; else if (c !== 'lieu' && c !== 'presence' && c !== 'moment') delete corrige[c]; }
+      await db.ecrire('praxis', [corrige]);
+    }
+    const soir = (await db.tout('memoire')).find((f) => f.id === 'm_soir');
+    const nouveau = MEMOIRE_DEPART.find((f) => f.id === 'm_soir');
+    if (soir && nouveau && (soir.texte.startsWith('Je dîne vers 19h') || soir.texte.startsWith('Je prépare à manger vers 19h30, un peu plus tôt'))) await db.ecrire('memoire', [{ ...soir, texte: nouveau.texte, date: nouveau.date }]);
+    await ecrireMeta('habitudesTaches', 2);
+  }
   await recharger();
 }
 
@@ -333,7 +348,7 @@ export async function importerV1(v1) {
       ...(long ? { progression: Math.min(100, (p.progress || 0) * 25) } : {}),
       origine: 'v1',
     };
-    for (const champ of ['heure', 'duree', 'frequence', 'importance', 'moment', 'lieu', 'minimum', 'description', 'presence']) {
+    for (const champ of ['heure', 'duree', 'frequence', 'importance', 'moment', 'lieu', 'minimum', 'description', 'presence', 'mois', 'horsMois', 'jourDuMois', 'apres']) {
       if (est[champ] !== undefined) v2[champ] = est[champ];
     }
     praxis.push(v2);

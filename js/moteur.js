@@ -24,8 +24,8 @@ export const REGLES = {
   dejeuner: 45,            // à la maison quand l'après-midi n'est pas travaillé (§4.1)
   diner: 60,
   dinerFamille: 75,
-  heureDiner: '19h00',
-  heureDinerFamille: '18h45',
+  heureDiner: '19h30',   // je prépare à manger vers 19h30 (21/11/2026)
+  heureDinerFamille: '19h30',   // 19h30 aussi en famille (21/11/2026) ; le repas dure alors un peu plus
 };
 
 // ── Mode minimum (§5.10 point 6) : 7 jours au plus, série gelée ──
@@ -69,12 +69,31 @@ const duree = (p) => Math.max(5, Math.round((dureeApprise(p) ?? (p.duree || 20) 
 
 // ── Score d'une tâche : urgence × importance (§5.1) ──
 const POIDS = { essentielle: 3, utile: 2, bonus: 1 };
+// Urgence d'une tâche (≥ 1 : due ; au-delà : en retard ; 0 : jamais en retard), selon son rythme réel (21/11/2026) :
+// mois permis ou pause saisonnière, jour fixe du mois (la finance le 15), tâche qui suit une autre (le linge après la lessive)
+export function urgenceTache(p, maintenant = new Date()) {
+  const mo = maintenant.getMonth() + 1;
+  if ((p.mois && !p.mois.includes(mo)) || (p.horsMois && p.horsMois.includes(mo))) return 0;
+  const der = d.derniereFois(p.id);
+  if (p.apres) {
+    const q = d.cache.praxis.find((x) => normaliser(x.libelle) === p.apres);
+    const dq = q ? d.derniereFois(q.id) : undefined;
+    return dq !== undefined && (der === undefined || dq < der) ? 1.5 : 0;
+  }
+  if (p.jourDuMois) {
+    const jour = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate());
+    const repere = new Date(jour.getFullYear(), jour.getMonth(), p.jourDuMois);
+    if (repere > jour) repere.setMonth(repere.getMonth() - 1);
+    const depuis = Math.round((jour - repere) / 864e5);
+    return der === undefined || der > depuis ? 1 + depuis / 7 : 0;
+  }
+  if (!p.frequence) return 0;
+  return der === undefined ? 0.4 : der / p.frequence;   // sans date : peu urgente
+}
 function score(p) {
   const der = d.derniereFois(p.id);
   if (p.section === 'long') return (POIDS[p.importance] || 1) * Math.min(3, ((der ?? 14) + 1) / 7);
-  if (!p.frequence) return 0;
-  const urgence = der === undefined ? 0.4 : der / p.frequence;   // ≥ 1 : due ou en retard ; sans date : peu urgente
-  return urgence * (POIDS[p.importance] || 2);
+  return urgenceTache(p) * (POIDS[p.importance] || 2);
 }
 const taille = (min) => (min > REGLES.pierre ? 'pierre' : min <= REGLES.sable ? 'sable' : 'gravier');
 // Nature d'une tâche : d'après sa durée déclarée (la marge de planification ne change pas sa nature, 20/11/2026)
@@ -268,13 +287,17 @@ export function composer(maintenant = new Date()) {
     capacite -= min;
     if (c.p.section === 'long' && !c.force) seancesLongCours--;
     flexibles.push({ id: c.p.id, force: !!c.force, libelle: c.p.libelle, couleur: c.p.couleur || '#A66E4E', duree: min,
+      seul: c.p.presence === 'Seul', prefere: /soir/i.test(c.p.moment || '') ? 'soir' : /matin/i.test(c.p.moment || '') ? 'matin' : '',
       type: c.ponctuelle || c.p.section === 'taches' || c.p.section === 'long' ? 'jour' : 'routine',
       ponctuelle: !!c.ponctuelle, longCours: c.p.section === 'long', taille: c.p.section === 'long' ? 'pierre' : natureDe(c.p), derniere: c.ponctuelle ? undefined : d.derniereFois(c.p.id) });
   }
 
   // Placement : on remplit les créneaux entre les blocs fixes, avec une pause après l'effort (§5.9)
   const reportees = flexibles.filter((f) => reportes.has(f.id));
-  const aPlacer = [...flexibles.filter((f) => !reportes.has(f.id)), ...reportees];
+  // préférences de moment (21/11/2026) : « milieu de matinée » d'abord (le sol), « soir » après le dîner (la série)
+  const normales = flexibles.filter((f) => !reportes.has(f.id));
+  const aPlacer = [...normales.filter((f) => f.prefere === 'matin'), ...normales.filter((f) => !f.prefere), ...reportees.filter((f) => f.prefere !== 'soir'), ...flexibles.filter((f) => f.prefere === 'soir')];
+  const finDiner = (() => { const r = fixes.find((x) => x.id === 'repas_diner'); return r ? r.heure + r.duree : 0; })();
   const placees = [];
   const fixesTries = fixes.slice().sort((a, b) => a.heure - b.heure || (a.rattrapage ? -1 : 0));
   for (let i = 1; i < fixesTries.length; i++) {
@@ -285,6 +308,7 @@ export function composer(maintenant = new Date()) {
   let effort = 0;
   const prochainFixe = (c) => fixesTries.find((f) => f.heure + f.duree > c);
   for (const f of aPlacer) {
+    if (f.prefere === 'soir' && curseur < finDiner) { curseur = finDiner; effort = 0; }
     for (let essais = 0; essais < 12; essais++) {
       const fx = prochainFixe(curseur);
       if (fx && curseur >= fx.heure) { curseur = fx.heure + fx.duree; effort = 0; continue; }
@@ -292,6 +316,7 @@ export function composer(maintenant = new Date()) {
       break;
     }
     if (!f.force && famille(curseur) && f.duree > 15) continue;
+    if (!f.force && f.seul && famille(curseur)) continue;   // jamais en famille (le sol, la série)
     if (curseur + f.duree > finJournee && !f.force) continue;
     placees.push({ ...f, heureMin: curseur });
     curseur += f.duree;

@@ -31,18 +31,18 @@ export const ESTIMATIONS = {
   'MEDITER':           { heure: '21h00', duree: 10 },
   'DESSIN':            { heure: '20h30', duree: 30, description: 'Centre d\'intérêt à explorer (loisir)' },
   // Tâches récurrentes
-  'COURSES':    { frequence: 1,  duree: 20, importance: 'utile', lieu: 'Travail', moment: 'Au travail, avant de partir' },   // au jour le jour, 15 à 20 min (21/11/2026)
-  'SERIE TV':   { frequence: 7,  duree: 45, importance: 'bonus', lieu: 'Maison', presence: 'Les 2' },
+  'COURSES':    { duree: 20, importance: 'utile', lieu: 'Travail', moment: 'Au travail, avant de partir' },   // plusieurs fois par semaine, jamais « en retard »
+  'SERIE TV':   { frequence: 4,  duree: 45, importance: 'bonus', lieu: 'Maison', presence: 'Seul', moment: 'Soir de détente' },
   'FILM':       { frequence: 14, duree: 120, importance: 'bonus', lieu: 'Maison', presence: 'Les 2' },
-  'LESSIVE':    { frequence: 4,  duree: 15, importance: 'utile', lieu: 'Maison' },
-  'EPILATION':  { frequence: 21, duree: 20, importance: 'bonus', lieu: 'Maison' },
-  'LINGE':      { frequence: 4,  duree: 20, importance: 'utile', lieu: 'Maison' },
+  'LESSIVE':    { frequence: 7,  duree: 15, importance: 'utile', lieu: 'Maison' },
+  'EPILATION':  { frequence: 45, duree: 20, importance: 'bonus', lieu: 'Maison', horsMois: [7, 8] },   // pause l'été
+  'LINGE':      { duree: 20, importance: 'utile', lieu: 'Maison', apres: 'LESSIVE' },                   // rangé après chaque lessive
   'RANGEMENT':  { frequence: 7,  duree: 30, importance: 'utile', lieu: 'Maison' },
-  'SOL':        { frequence: 7,  duree: 30, importance: 'utile', lieu: 'Maison' },
-  'RECYCLAGE':  { frequence: 7,  duree: 15, importance: 'utile', lieu: 'Maison' },
-  'AQUARIUM':   { frequence: 14, duree: 30, importance: 'utile', lieu: 'Maison' },
-  'VOYAGE':     { frequence: 30, duree: 45, importance: 'bonus', lieu: 'Maison' },
-  'FINANCE':    { frequence: 30, duree: 30, importance: 'utile', lieu: 'Maison' },
+  'SOL':        { frequence: 30, duree: 30, importance: 'utile', lieu: 'Maison', presence: 'Seul', moment: 'Milieu de matinée' },
+  'RECYCLAGE':  { frequence: 17, duree: 15, importance: 'utile', lieu: 'Maison' },                      // 2 à 3 semaines, selon la corbeille
+  'AQUARIUM':   { frequence: 21, duree: 30, importance: 'utile', lieu: 'Maison' },
+  'VOYAGE':     { frequence: 30, duree: 45, importance: 'bonus', lieu: 'Maison', mois: [4, 5, 6, 7] },  // départ en juillet, préparé 3 mois avant
+  'FINANCE':    { frequence: 30, duree: 30, importance: 'utile', lieu: 'Maison', jourDuMois: 15 },      // le 15, séances en plus possibles
   // Long cours
   'LIRE UN LIVRE': { importance: 'utile' },
   'MAGIE':         { importance: 'bonus', description: 'Centre d\'intérêt à explorer (loisir)' },
@@ -52,6 +52,10 @@ export const ESTIMATIONS = {
   'APPLI':         { importance: 'utile', description: 'Faire avancer un projet d\'application précis' },
   'BOXE TUTOS':    { importance: 'bonus', description: 'Regarder des tutos, travailler la technique' },
 };
+
+// Rythmes donnés le 21/11/2026 : appliqués une fois aux données déjà en place (voir donnees.charger)
+export const HABITUDES_TACHES = ['COURSES', 'SERIE TV', 'LESSIVE', 'EPILATION', 'LINGE', 'SOL', 'RECYCLAGE', 'AQUARIUM', 'VOYAGE', 'FINANCE'];
+export const CHAMPS_HABITUDES = ['frequence', 'presence', 'moment', 'mois', 'horsMois', 'jourDuMois', 'apres', 'lieu'];
 
 // « FAIRE LE LIT » → « Faire le lit » (les bulles s'affichent de toute façon en capitales)
 export function enPhrase(s) {

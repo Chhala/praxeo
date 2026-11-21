@@ -44,7 +44,7 @@ export const PLANNING_DEFAUT = {
 export const MEMOIRE_DEPART = [
   { id: 'm_reveil', theme: 'Habitudes', texte: 'Réveil à 5h30, mais en général je me lève plutôt vers 5h40.', date: '2026-11-19' },
   { id: 'm_matin', theme: 'Planning', texte: 'Le matin : douche (25 à 30 min), puis échauffement et exercice.', date: '2026-11-19' },
-  { id: 'm_soir', theme: 'Planning', texte: 'Je dîne vers 19h, un peu plus tôt et plus longtemps quand ma fille est là. À partir de 21h30, retour au calme : plus rien de nouveau.', date: '2026-11-20' },
+  { id: 'm_soir', theme: 'Planning', texte: 'Je prépare à manger vers 19h30, y compris quand ma fille est là (le repas dure alors un peu plus). À partir de 21h30, retour au calme : plus rien de nouveau.', date: '2026-11-21' },
   { id: 'm_courses', theme: 'Habitudes', texte: 'Je travaille dans une grande surface : je fais mes courses avant de partir, au jour le jour, en 15 à 20 minutes. Le dimanche matin, je peux aussi faire des courses (30 minutes).', date: '2026-11-21' },
   { id: 'm_lit', theme: 'Habitudes', texte: 'Les jours travaillés, je fais mon lit avant de partir, vers 7h10.', date: '2026-11-21' },
   { id: 'm_ecole', theme: 'Planning', texte: 'Le jeudi et le vendredi (hors vacances scolaires), je m\'occupe de ma fille dès 6h30, puis je pars à 7h15 (école, puis travail) : le matin est court, échauffement et exercice réduits au plus simple.', date: '2026-11-19' },

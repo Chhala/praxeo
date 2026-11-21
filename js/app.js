@@ -7,7 +7,7 @@ import * as consignes from './consignes.js';
 import * as annuler from './annuler.js';
 import * as coachIA from './coach.js';
 import { rendre as rendreStats } from './stats.js';
-import { rendre as rendreReglages } from './reglages.js';
+import { rendre as rendreReglages, ouvrirSection } from './reglages.js';
 import { initPraxis, rendre as rendrePraxis } from './praxis.js';
 import { initStats, ouvrirStats } from './stats.js';
 import { initReglages } from './reglages.js';
@@ -50,7 +50,7 @@ function cliquetis() {
 document.addEventListener('pointerdown', () => {
   try {
     if (!audio && donnees.reglage('bruitFrappe')) audio = new (window.AudioContext || window.webkitAudioContext)();
-    if (audio && audio.state === 'suspended') audio.resume();
+    if (audio && audio.state !== 'running') audio.resume();   // « suspended » ou « interrupted » (iOS, retour d'arrière-plan)
   } catch { /* idem */ }
 }, { passive: true });
 
@@ -685,7 +685,10 @@ async function init() {
   });
   brancherBalayage();
   brancherClavier();
-  allerA('accueil');
+  // juste après « Mettre à jour » : on reste sur Réglages, Données, pour voir la nouvelle version
+  let apresMaj = false;
+  try { apresMaj = sessionStorage.getItem('praxeoApresMaj') === '1'; sessionStorage.removeItem('praxeoApresMaj'); } catch { /* rien */ }
+  if (apresMaj) { allerA('reglages'); ouvrirSection('donnees'); } else allerA('accueil');
   enregistrerServiceWorker();
 }
 

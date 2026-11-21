@@ -264,7 +264,12 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
     if (der !== undefined) bits.push(der === 0 ? 'fait aujourd\'hui' : `dernière fois il y a ${der} j`);
     // ce qui se fait au travail (les courses) ne se propose pas pour le temps libre à la maison
     if ((p.lieu || '').toLowerCase() === 'travail') bits.push('se fait au travail, jamais à proposer à la maison');
-    else if (p.section === 'taches' && p.frequence && der !== undefined && der >= p.frequence) bits.push('due');
+    else if (p.section === 'taches' && moteur.urgenceTache(p, maintenant) >= 1) bits.push('due');
+    if (p.jourDuMois) bits.push(`le ${p.jourDuMois} du mois, séances en plus possibles`);
+    if (p.apres) bits.push(`à faire après : ${p.apres.toLowerCase()}`);
+    if (p.mois) bits.push(`seulement en ${p.mois.map((x) => MOIS[x - 1]).join(', ')}`);
+    if (p.horsMois) bits.push(`pause en ${p.horsMois.map((x) => MOIS[x - 1]).join(', ')}`);
+    if (p.moment && p.section === 'taches') bits.push(`moment : ${p.moment}`);
     l.push(`- ${bits.join(' · ')}`);
   }
 
