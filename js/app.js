@@ -40,7 +40,7 @@ function cliquetis() {
     const g = audio.createGain();
     o.type = 'square';
     o.frequency.value = 1800 + Math.random() * 600;
-    g.gain.setValueAtTime(0.05, audio.currentTime);   // audible sur le haut-parleur de l'iPhone, toujours discret
+    g.gain.setValueAtTime(0.012, audio.currentTime);   // volume d'origine (0,05 jugé trop fort, 21/11/2026)
     g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.025);
     o.connect(g).connect(audio.destination);
     o.start();
