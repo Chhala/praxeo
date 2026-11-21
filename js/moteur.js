@@ -203,9 +203,13 @@ export function composer(maintenant = new Date()) {
     if (due && q.heure && q.date === date && !retires.has(q.id)) {
       fixes.push({ id: q.id, libelle: q.libelle, heure: m(q.heure), duree: q.duree || 20, type: 'jour', ponctuelle: true, couleur: q.couleur || '#A66E4E', ...(q.butoir ? { butoir: q.butoir } : {}) });
       vus.add(q.id);
+      if (q.praxisId) vus.add(q.praxisId);
       continue;
     }
-    if (due && !retires.has(q.id)) candidats.push({ p: { ...q, section: 'ponctuelle', importance: q.importance || 'utile' }, force: !!q.date, ponctuelle: true });
+    if (due && !retires.has(q.id)) {
+      candidats.push({ p: { ...q, section: 'ponctuelle', importance: q.importance || 'utile' }, force: !!q.date, ponctuelle: true });
+      if (q.praxisId) vus.add(q.praxisId);   // le linge prévu dimanche n'apparaît qu'une fois ce jour-là
+    }
   }
   if (!minimum) {
     const dues = d.cache.praxis

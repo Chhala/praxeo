@@ -35,7 +35,7 @@ export const SCHEMA = {
       type: 'array',
       items: {
         anyOf: [
-          action('ajouter_tache', { libelle: S, duree: N, heure: S, praxisId: S }),
+          action('ajouter_tache', { libelle: S, duree: N, heure: S, date: S, praxisId: S }),
           action('ajouter_au_programme', { praxisId: S }),
           action('reporter', { id: S, motif: choix('choix', 'empeche') }),
           action('retirer_du_jour', { id: S }),
@@ -121,7 +121,8 @@ Chaque message que je t'envoie commence par un bloc <contexte> écrit par l'appl
 - reponses : des réponses rapides en bulles, seulement quand ton message pose une vraie question (« 30 min », « 1 h », « Oui », « Corriger »…), trois au plus, un à trois mots chacune ; sinon une liste vide, ce qui est le cas le plus fréquent, notamment à l'ouverture. Jamais de bulle « Fait » ou « C'est fait » : je valide moi-même en touchant la tâche dans le programme.
 - actions : ce que l'application doit faire. N'agis que sur ce que je t'ai dit ou confirmé ; jamais de changement silencieux de mes praxis.
   - ajouter_au_programme : une praxis existante (tâche, routine) à faire aujourd'hui ; le moteur la place. C'est l'action normale pour une praxis de la bibliothèque.
-  - ajouter_tache : une tâche nouvelle pour aujourd'hui (libellé en clair, durée en minutes), ou une séance d'un projet au long cours dont j'ai choisi la durée (avec son praxisId). heure « 16h30 » pour une séance à heure fixe, sinon "". praxisId : l'identifiant de la praxis si c'en est une, sinon "".
+  - ajouter_tache : une tâche nouvelle (libellé en clair, durée en minutes), une séance d'un projet au long cours dont j'ai choisi la durée, ou une praxis à faire un autre jour (avec son praxisId). heure « 16h30 » pour une séance à heure fixe, sinon "". date : "" pour aujourd'hui, ou « AAAA-MM-JJ » pour un autre jour, prise dans la liste « Prochains jours » du contexte. praxisId : l'identifiant de la praxis si c'en est une, sinon "".
+  - Déplacer une tâche à un autre jour (« le linge, fais-le dimanche ») : retirer_du_jour pour aujourd'hui ET ajouter_tache avec son praxisId, sa durée et la date de ce jour-là, dans la même réponse. Ne dis jamais que c'est fait sans ces deux actions.
   - valider_hier (seulement si je te dis qu'une tâche d'hier a bien été faite).
   - Ne pas faire une tâche maintenant : reporter avec motif choix = plus tard aujourd'hui (elle reste au programme, en fin de journée) ; retirer_du_jour = pas aujourd'hui, par choix (elle reste due et revient un autre jour) ; reporter avec motif empeche = empêché aujourd'hui (imprévu, malade, panne : neutre, elle sort du programme).
   - ajouter_note : une idée ou une chose à faire un autre jour. Une idée pour une praxis (« idée pour l'appli », « pour Magie ») : praxisId de cette praxis et rappel vrai, elle me sera rappelée au début de la prochaine séance. Une chose pour un autre jour : praxisId "", rappel vrai. Les idées vont dans le bloc-notes, jamais dans la mémoire.
@@ -222,6 +223,13 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
     const p = n.praxisId && d.praxisParId(n.praxisId);
     l.push(`- « ${n.libelle} » [${n.id}]${p ? ` · idée pour ${p.libelle} [${p.id}]` : ''}${n.rappel ? ` · rappel actif${n.rappeleLe ? `, dernier rappel le ${dateCourte(n.rappeleLe)}` : ', jamais rappelée'}` : ''}`);
   }
+
+  // Les 7 prochains jours, pour dater « dimanche », « demain », « mardi prochain » sans calcul
+  const prochains = [];
+  for (let i = 1; i <= 7; i++) { const x = new Date(maintenant); x.setDate(x.getDate() + i); prochains.push(`${i === 1 ? 'demain ' : ''}${JOURS[x.getDay()]} ${x.getDate()} ${MOIS[x.getMonth()]} = ${d.cleDate(x)}`); }
+  l.push('', `Prochains jours : ${prochains.join(' ; ')}.`);
+  const aVenir = d.cache.ponctuelles.filter((q) => q.date && q.date > date).sort((a, b) => a.date.localeCompare(b.date));
+  if (aVenir.length) l.push(`Déjà prévu les prochains jours : ${aVenir.map((q) => `${q.libelle} le ${dateCourte(q.date)} [${q.id}]`).join(', ')}.`);
 
   const semaine = d.cache.meta.projetsSemaine;
   const choisis = semaine && semaine.lundi === lundiCible(maintenant);
@@ -367,12 +375,13 @@ export async function appliquer(json, dit = '') {
         case 'ajouter_tache': {
           const p = a.praxisId && existe(a.praxisId);
           const q = await d.ajouterPonctuelle({
-            libelle: a.libelle || p?.libelle || 'Tâche', duree: Math.max(1, a.duree || 20), date: auj,
+            libelle: a.libelle || p?.libelle || 'Tâche', duree: Math.max(1, a.duree || p?.duree || 20),
+            date: /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') && a.date > auj ? a.date : auj,   // un autre jour (« fais-le dimanche », 21/11/2026)
             ...(a.heure && /^\d{1,2}h\d{0,2}$/.test(a.heure) ? { heure: a.heure.replace(/h$/, 'h00') } : {}),
             ...(p ? { praxisId: p.id, couleur: p.couleur } : {}), source: 'coach',
           });
           defaire.push(() => d.supprimerPonctuelle(q.id));
-          resume.push(`${q.libelle} ajoutée`);
+          resume.push(q.date === auj ? `${q.libelle} ajoutée` : `${q.libelle} prévue le ${dateCourte(q.date)}`);
           break;
         }
         case 'ajouter_au_programme': if (existe(a.praxisId)) { const ev = await d.noter('ajoute', a.praxisId); defaire.push(() => d.supprimerEvenement(ev.id)); } break;
