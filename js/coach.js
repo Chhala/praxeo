@@ -374,6 +374,13 @@ export async function appliquer(json, dit = '') {
       switch (a.type) {
         case 'ajouter_tache': {
           const p = a.praxisId && existe(a.praxisId);
+          // Déplacée à un autre jour : les copies restées pour aujourd'hui (ou avant) disparaissent
+          if (p && /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') && a.date > auj) {
+            for (const vieille of d.cache.ponctuelles.filter((x) => x.praxisId === p.id && (x.date || auj) <= auj)) {
+              await d.supprimerPonctuelle(vieille.id);
+              defaire.push(() => d.restaurerPonctuelle(vieille));
+            }
+          }
           const q = await d.ajouterPonctuelle({
             libelle: a.libelle || p?.libelle || 'Tâche', duree: Math.max(1, a.duree || p?.duree || 20),
             date: /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') && a.date > auj ? a.date : auj,   // un autre jour (« fais-le dimanche », 21/11/2026)

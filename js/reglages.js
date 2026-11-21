@@ -16,7 +16,10 @@ const SVG_CROIX = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 
 const ouvertes = new Set();
 const themesOuverts = new Set();
 let carnetOuvert = false;
-let semaineVue = 0;   // Ma semaine : 0 = cette semaine, 1 = la prochaine (glissement du doigt)
+let semaineVue = 0;
+// Version installée (nom du cache du service worker) : pour savoir si une mise à jour est bien arrivée sur l'iPhone
+let versionAppli = '';
+try { caches.keys().then((k) => { versionAppli = (k.find((n) => n.startsWith('praxeo-v2-')) || '').replace('praxeo-v2-', ''); }); } catch { /* pas de cache */ }   // Ma semaine : 0 = cette semaine, 1 = la prochaine (glissement du doigt)
 let apresImport = () => {};
 
 // ── Petits éléments ────────────────────────────
@@ -267,6 +270,7 @@ function sectionDonnees() {
     ${rang('Exporter', `<button type="button" class="reg-bouton" data-action="exporter">Exporter</button>`, 'une sauvegarde complète, sans la clé API')}
     ${rang('Importer', `<button type="button" class="reg-bouton" data-action="importer">Importer</button>`, 'remplace les données de cet appareil')}
     ${rang('Réinitialiser', `<button type="button" class="reg-bouton danger" data-action="reinitialiser">Tout effacer</button>`, 'repartir de zéro')}
+    ${versionAppli ? `<p class="reg-aide">Version ${echapper(versionAppli)}</p>` : ''}
     <input type="file" id="fichierImport" accept="application/json,.json" hidden>`;
 }
 

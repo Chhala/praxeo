@@ -193,12 +193,16 @@ export function composer(maintenant = new Date()) {
   // Candidats flexibles : ajoutées (« En retard » → Oui), ponctuelles, tâches dues, séances au long cours
   const candidats = [];
   const vus = new Set(fixes.map((f) => f.id));
+  // Retirer une praxis du jour la retire sous toutes ses formes : ajoutée au programme, ou tâche du jour qui la porte
+  // (sinon « le linge, fais-le dimanche » laissait une copie du linge au programme, 21/11/2026)
   for (const id of ajoutees) {
     const p = d.praxisParId(id);
-    if (p && !vus.has(id)) { candidats.push({ p, force: true }); vus.add(id); }
+    if (p && !vus.has(id) && !retires.has(id)) { candidats.push({ p, force: true }); vus.add(id); }
   }
   for (const q of d.cache.ponctuelles) {
     const due = (q.date && q.date <= date) || (!q.date && q.echeance);
+    if (due && q.praxisId && retires.has(q.praxisId) && (q.date || date) <= date) continue;
+    if (due && q.praxisId && vus.has(q.praxisId)) continue;   // une seule fois la même praxis dans la journée
     // une séance fixée par le coach (« Masques jusqu'à 16h30 ») : un bloc à heure fixe, aujourd'hui
     if (due && q.heure && q.date === date && !retires.has(q.id)) {
       fixes.push({ id: q.id, libelle: q.libelle, heure: m(q.heure), duree: q.duree || 20, type: 'jour', ponctuelle: true, couleur: q.couleur || '#A66E4E', ...(q.butoir ? { butoir: q.butoir } : {}) });
