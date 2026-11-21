@@ -1,8 +1,10 @@
 // PRAXEO v2 — service worker : l'application s'ouvre même sans réseau (lot 0).
 // Stratégie « réseau d'abord » : en ligne, on prend toujours la dernière version (et on la met en cache) ;
 // hors ligne, on sert la copie en cache. À chaque nouvelle publication, augmenter VERSION.
+// « Dernière version » au sens strict : on contourne le cache HTTP du navigateur (GitHub Pages le garde 10 minutes),
+// sinon une mise à jour publiée pouvait mettre jusqu'à 10 minutes à arriver sur l'iPhone (21/11/2026).
 
-const VERSION = 'praxeo-v2-031';
+const VERSION = 'praxeo-v2-032';
 const COQUILLE = [
   './',
   './index.html',
@@ -34,7 +36,7 @@ const COQUILLE = [
 const EXCLUS = ['/_v1/', '/conception/', '/_outils/', '/_stuff/'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COQUILLE)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COQUILLE.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -52,7 +54,8 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return;            // l'API Claude (lot 4) n'est jamais mise en cache
   if (EXCLUS.some((d) => url.pathname.includes(d))) return;
   e.respondWith(
-    fetch(req)
+    // une page (navigation) ne peut pas être recopiée avec d'autres options : on la redemande par son adresse
+    (req.mode === 'navigate' ? fetch(url.href, { cache: 'no-cache' }) : fetch(req, { cache: 'no-cache' }))
       .then((rep) => {
         if (rep.ok) { const copie = rep.clone(); caches.open(VERSION).then((c) => c.put(req, copie)); }
         return rep;

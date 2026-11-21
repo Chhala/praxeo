@@ -267,6 +267,7 @@ function modifierFait(id) {
 
 function sectionDonnees() {
   return `
+    ${rang('Mise à jour', `<button type="button" class="reg-bouton" data-action="mettreAJour">Mettre à jour</button>`, 'récupère la dernière version publiée ; tes données et ta clé restent')}
     ${rang('Exporter', `<button type="button" class="reg-bouton" data-action="exporter">Exporter</button>`, 'une sauvegarde complète, sans la clé API')}
     ${rang('Importer', `<button type="button" class="reg-bouton" data-action="importer">Importer</button>`, 'remplace les données de cet appareil')}
     ${rang('Réinitialiser', `<button type="button" class="reg-bouton danger" data-action="reinitialiser">Tout effacer</button>`, 'repartir de zéro')}
@@ -343,6 +344,20 @@ function confirmerSuppressionCle() {
     if (b.dataset.rep === 'oui') { donnees.supprimerCleApi(); rendre(); }
     fermerFeuille();
   }));
+}
+
+// Mise à jour (21/11/2026) : redemande le service worker, vide les copies hors ligne, puis recharge.
+// Seul le code change : les données (IndexedDB) et la clé API (localStorage) ne sont pas touchées.
+async function mettreAJour(bouton) {
+  if (navigator.onLine === false) { message('Pas de réseau', 'La mise à jour se fera quand tu seras connecté.'); return; }
+  bouton.disabled = true;
+  bouton.textContent = 'Mise à jour…';
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if (reg) await reg.update();
+    for (const k of await caches.keys()) if (k.startsWith('praxeo-v2-')) await caches.delete(k);
+  } catch { /* on recharge quand même */ }
+  location.reload();
 }
 
 // Export : un fichier JSON téléchargé (sur l'iPhone, la feuille de partage propose de l'enregistrer)
@@ -501,6 +516,7 @@ export function initReglages(options = {}) {
         if (v) { donnees.enregistrerCleApi(v); rendre(); }
         break;
       }
+      case 'mettreAJour': mettreAJour(action); break;
       case 'exporter': exporter(); break;
       case 'importer': $('#fichierImport').click(); break;   // dans le geste : exigé pour ouvrir le sélecteur de fichier
       case 'reinitialiser': confirmerReinitialisation(); break;

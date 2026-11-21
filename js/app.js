@@ -709,7 +709,7 @@ function brancherClavier() {
 
 // Hors-ligne : le service worker garde l'application en cache (§2, lot 0)
 function enregistrerServiceWorker() {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('[Praxeo] service worker', e));
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch((e) => console.warn('[Praxeo] service worker', e));
 }
 
 init();
