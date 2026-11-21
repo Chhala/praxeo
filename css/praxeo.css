@@ -216,6 +216,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .praxis-ligne { display: flex; align-items: center; gap: 8px; min-height: 42px; cursor: pointer; }
 .praxis-droite { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .praxis-info { font-size: 15px; color: var(--texte-2); white-space: nowrap; }
+.praxis-ligne .duree { font-size: 12px; color: var(--texte-2); opacity: .8; flex-shrink: 0; white-space: nowrap; }   /* comme à l'accueil (21/11/2026) */
 .pastille-retard {
   font-family: var(--marcellus); font-size: 13px; color: #fff;
   background: var(--bordeaux); border-radius: 10px; padding: 3px 9px; white-space: nowrap;

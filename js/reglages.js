@@ -231,8 +231,7 @@ function sectionIA() {
   return `
     ${rang('Modèle', segment('modele', ['Haiku', 'Opus'], modele), modele === 'Haiku' ? 'rapide et économique' : 'plus fin, plus coûteux')}
     ${cle}
-    ${rang('Coût du mois', `<span class="reg-valeur">${echapper(montant(coutDuMois().usd))}</span>`)}
-    ${rang('Mode comparaison', interrupteur('comparaison', donnees.reglage('comparaison')), 'chaque réponse aux deux modèles : coûte surtout le prix d\'Opus')}`;
+    ${rang('Coût du mois', `<span class="reg-valeur">${echapper(montant(coutDuMois().usd))}</span>`)}`;
 }
 
 // Une seule unité à la fois, avec son symbole : en cents sous 1 $ (« 0,34 ¢ », « 12 ¢ »), en dollars au-delà (« 1,40 $ »)

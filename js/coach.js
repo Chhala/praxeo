@@ -334,7 +334,7 @@ export async function demander(texte, { consigneLocale = '', surMessage, relance
   const appel = (m, flux) => claude.appeler({ cle, modele: m, systeme, messages, schema: SCHEMA, surMessage: flux })
     .then(async (r) => { await compter(r); return r; });
 
-  if (!d.reglage('comparaison')) {
+  if (!globalThis.__comparaisonEssai) {   // mode comparaison retiré des Réglages (21/11/2026)
     const principal = await appel(modele, surMessage);
     return { principal, tours, dit };
   }

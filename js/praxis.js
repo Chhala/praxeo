@@ -83,10 +83,10 @@ export function rendre() {
     const lignes = items.map((p) => `
       <li class="praxis-ligne" data-id="${p.id}">
         <span class="bulle" style="background:${p.couleur}">${echapper(p.libelle)}</span>
+        ${p.duree ? `<span class="duree">${p.duree < 60 ? `${p.duree} min` : `${Math.floor(p.duree / 60)}h${p.duree % 60 ? String(p.duree % 60).padStart(2, '0') : ''}`}</span>` : ''}
         <span class="praxis-droite">
           ${enRetard(p) ? '<button class="pastille-retard" type="button" data-retard="' + p.id + '">En retard</button>' : ''}
           <span class="praxis-info">${echapper(infoTemps(p))}</span>
-          ${p.duree ? `<span class="duree">${p.duree < 60 ? `${p.duree} min` : `${Math.floor(p.duree / 60)}h${p.duree % 60 ? String(p.duree % 60).padStart(2, '0') : ''}`}</span>` : ''}
         </span>
       </li>`).join('');
     return `

@@ -40,19 +40,25 @@ function cliquetis() {
     const g = audio.createGain();
     o.type = 'square';
     o.frequency.value = 1800 + Math.random() * 600;
-    g.gain.setValueAtTime(0.012, audio.currentTime);
+    g.gain.setValueAtTime(0.05, audio.currentTime);   // audible sur le haut-parleur de l'iPhone, toujours discret
     g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.025);
     o.connect(g).connect(audio.destination);
     o.start();
     o.stop(audio.currentTime + 0.03);
   } catch { /* son indisponible */ }
 }
-document.addEventListener('pointerdown', () => {
+// iOS ne compte comme geste autorisant le son qu'un toucher terminé (touchend, click), pas pointerdown (21/11/2026)
+function deverrouillerSon() {
   try {
-    if (!audio && donnees.reglage('bruitFrappe')) audio = new (window.AudioContext || window.webkitAudioContext)();
-    if (audio && audio.state !== 'running') audio.resume();   // « suspended » ou « interrupted » (iOS, retour d'arrière-plan)
-  } catch { /* idem */ }
-}, { passive: true });
+    if (!donnees.reglage('bruitFrappe')) return;
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state !== 'running') audio.resume();   // « suspended » ou « interrupted » (retour d'arrière-plan)
+    const b = audio.createBuffer(1, 1, 22050);         // un son muet joué dans le geste : déverrouille la sortie audio
+    const s = audio.createBufferSource();
+    s.buffer = b; s.connect(audio.destination); s.start(0);
+  } catch { /* son indisponible */ }
+}
+for (const ev of ['touchend', 'click', 'keydown']) document.addEventListener(ev, deverrouillerSon, { passive: true, capture: true });
 
 const echapper = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
