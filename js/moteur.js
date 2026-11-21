@@ -215,6 +215,7 @@ export function composer(maintenant = new Date()) {
   for (const q of d.cache.ponctuelles) {
     const due = (q.date && q.date <= date) || (!q.date && q.echeance);
     if (due && q.praxisId && retires.has(q.praxisId) && (q.date || date) <= date) continue;
+    if (vus.has(q.id)) continue;   // déjà placée (commencée, 21/11/2026) : pas une deuxième fois
     if (due && q.praxisId && vus.has(q.praxisId)) continue;   // une seule fois la même praxis dans la journée
     // une séance fixée par le coach (« Masques jusqu'à 16h30 ») : un bloc à heure fixe, aujourd'hui
     if (due && q.heure && q.date === date && !retires.has(q.id)) {
@@ -253,6 +254,8 @@ export function composer(maintenant = new Date()) {
   const flexibles = [];
   // Projets au long cours : une séance par jour, deux les jours de repos (on avance régulièrement, sans tout envahir)
   let seancesLongCours = j.travail === 'aucun' ? 2 : 1;
+  // une séance au long cours déjà commencée compte dans le quota du jour
+  seancesLongCours -= fixes.filter((f) => f.enCours && d.praxisParId(f.id)?.section === 'long').length;
   for (const c of candidats.sort((a, b) => (b.force - a.force) || ordre[natureDe(a.p)] - ordre[natureDe(b.p)])) {
     if (c.p.section === 'long' && !c.force) {
       if (seancesLongCours <= 0) continue;
