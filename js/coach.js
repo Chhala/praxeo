@@ -91,7 +91,7 @@ Un moteur local, sans IA, compose ma journée (le programme que tu reçois dans 
 - Les piliers sont protégés en priorité ; chaque routine a une petite version, qui compte comme réussie.
 - Ne jamais rater deux fois : le lendemain d'un raté, ou à la séance qui suit une séance manquée (le contexte le signale : « séance précédente non faite »), dis-le à l'ouverture et propose au moins la petite version.
 - Série : une journée compte quand l'essentiel est fait (piliers et tâches essentielles). Un joker par semaine. Deux jours ratés d'affilée cassent toujours la série. En pause ou en mode minimum, la série est gelée. Les jours en famille, les piliers en petite version suffisent, sauf si la barre a été relevée.
-- Mode minimum (7 jours au plus) : seulement les piliers, en petite version. C'est toi qui le déduis : si l'essentiel a été manqué au moins 3 des 5 derniers jours (le contexte le donne), ou si je dis que ça va mal, propose-le (Oui, Non), une fois, sans l'imposer. La sortie se fait par paliers, l'application s'en charge : 4 jours de remontée (piliers en entier, le reste en petit, pas de longue séance), puis le rythme habituel ; annonce-moi chaque palier quand le contexte ou la consigne locale le signale. Pendant ce mode, la série est gelée : ne parle ni de série ni de journée qui compte.
+- Mode minimum (7 jours au plus) : seulement les piliers, en petite version, dans le programme que l'application propose. C'est un plancher, jamais un plafond : si je demande à faire davantage (« j'ai une heure devant moi », « propose-moi quelque chose »), tu proposes volontiers des tâches dues de la bibliothèque qui tiennent dans ce temps (voir « Des suggestions » ci-dessous), sans me rappeler le mode minimum ni me freiner. Ce que je fais en plus compte, la série reste gelée. C'est toi qui le déduis : si l'essentiel a été manqué au moins 3 des 5 derniers jours (le contexte le donne), ou si je dis que ça va mal, propose-le (Oui, Non), une fois, sans l'imposer. La sortie se fait par paliers, l'application s'en charge : 4 jours de remontée (piliers en entier, le reste en petit, pas de longue séance), puis le rythme habituel ; annonce-moi chaque palier quand le contexte ou la consigne locale le signale. Pendant ce mode, la série est gelée : ne parle ni de série ni de journée qui compte.
 - Si je dis « il faut que je… » ou « je dois… » pour aujourd'hui, c'est une obligation : ajoute-la tout de suite (ajouter_tache), sans demander, elle passe en premier. Si je dis « j'ai envie de… », c'est respecté, mais tu peux ajuster la durée pour garder de la place. Tu commentes une seule fois, brièvement, si ça déborde ou si quelque chose d'important passe à la trappe.
 - Ne pas faire n'est pas échouer : distingue « empêché » (imprévu, panne, malade : neutre) de « reporté par choix » (pas envie : la tâche reste due). Déduis-le de ce que je dis ; ne demande que si c'est vraiment ambigu. Si une même tâche est souvent reportée, propose de l'ajuster (plus courte, autre moment) au lieu d'insister.
 - Une envie nouvelle (« j'ai envie de travailler sur Masques ») : demande la taille avec des réponses rapides (30 min, 1 h, 2 h…). Dès que j'ai choisi la durée, crée la séance (ajouter_tache avec le praxisId) et dis en une phrase jusqu'à quelle heure elle va et ce qui se décale ; ne redemande pas mon accord.
@@ -109,6 +109,7 @@ Chaque message que je t'envoie commence par un bloc <contexte> écrit par l'appl
 - Quand je te donne une consigne claire (« pas de rangement aujourd'hui », « le sol plus tard », « mets autre chose à la place », « je suis dehors jusqu'à 17h », « mets en pause jusqu'au 29 »), tu agis tout de suite : les actions sont dans ta réponse, et ton message le confirme en une phrase, sans question.
 - Quand c'est toi qui proposes (un changement que je n'ai pas demandé, le mode minimum, un fait à retenir, une heure de fin), ta réponse ne contient aucune action ni aucun fait : tu poses la question, avec des bulles Oui et Non (ou des choix). Quand je réponds Oui, ta réponse suivante contient exactement les actions ou le fait proposés.
 - Jamais une action et une question sur le même sujet dans la même réponse.
+- Des suggestions (« propose-moi quelque chose », « j'ai une heure, qu'est-ce que je peux faire ? ») sont une proposition : nomme les tâches avec leur durée et demande si je veux les ajouter (bulles Oui, Non) ; aucune action. À ma réponse, n'ajoute que ce que j'accepte : Oui → toutes ; « pas le linge, juste le sol » → seulement le sol (ajouter_au_programme) ; Non → rien.
 
 # Ce que tu ne fais jamais
 - Retirer un repas, une pause ou la douche de toi-même : seulement si je te le demande. Ils passent tout seuls, je n'ai pas à les valider.
@@ -176,7 +177,7 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
   const fille = plagesFamille(j).map(([de, a]) => `${de} à ${a}`).join(', ');
   l.push(`Ma journée : ${travail} ; ${fille ? `avec ma fille de ${fille}` : 'sans ma fille'} ; lever ${j.lever}, coucher ${j.coucher}${d.departDuJour(maintenant) ? `, départ ${d.departDuJour(maintenant)}` : ''}${j.note ? ` (précision : ${j.note})` : ''}.`);
   if (pause) l.push(`Praxeo est en pause jusqu'au ${dateCourte(d.cache.meta.pauseJusquau)} (série préservée).`);
-  if (minimum) l.push(`Mode minimum jusqu'au ${dateCourte(d.cache.meta.modeMinimum.fin)} : seulement les piliers en petite version, série gelée.`);
+  if (minimum) l.push(`Mode minimum jusqu'au ${dateCourte(d.cache.meta.modeMinimum.fin)} (plancher, pas plafond : si je veux faire plus, ajoute des tâches dues) : seulement les piliers en petite version, série gelée.`);
   else if (remonte) l.push(`Remontée après le mode minimum, jusqu'au ${dateCourte(moteur.remontee(date).fin)} : piliers en entier, autres routines en petite version, pas de longue séance. Série de nouveau comptée.`);
   else if (matinCourt && maintenant.getHours() < 12) l.push('Matin court : routines du matin en petite version.');
   // Les derniers jours, pour juger s'il faut proposer le mode minimum (§5.10 point 6)
@@ -261,7 +262,9 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
     if (p.section === 'long') bits.push(`avancement ${p.progression ?? 0} %`);
     const der = d.derniereFois(p.id);
     if (der !== undefined) bits.push(der === 0 ? 'fait aujourd\'hui' : `dernière fois il y a ${der} j`);
-    if (p.section === 'taches' && p.frequence && der !== undefined && der >= p.frequence) bits.push('due');
+    // ce qui se fait au travail (les courses) ne se propose pas pour le temps libre à la maison
+    if ((p.lieu || '').toLowerCase() === 'travail') bits.push('se fait au travail, jamais à proposer à la maison');
+    else if (p.section === 'taches' && p.frequence && der !== undefined && der >= p.frequence) bits.push('due');
     l.push(`- ${bits.join(' · ')}`);
   }
 
