@@ -284,6 +284,7 @@ const coach = {
       e.stopPropagation();
       if (!this.minutesMinuteur) return;
       lancerMinuteur(this.minutesMinuteur);              // dans le geste : exigé par iOS
+      noterDebut(programmeVisible()[0]);
       this.btnMinuteur.classList.add('lance');
       this.btnMinuteur.innerHTML = `${SVG_SABLIER}lancé`;
     });
@@ -551,6 +552,15 @@ function brancherAppuiLong() {
 
 const fermerSurReponse = (r) => r.addEventListener('click', (e) => { if (e.target.closest('[data-rep]')) fermerFeuille(); });
 
+// Début d'une tâche (minuteur lancé, ou « C'est commencé ») : elle garde son heure, le temps restant se compte (21/11/2026)
+function noterDebut(t) {
+  if (!t || t.enCours || t.faite || estPause(t) || t.type === 'repas' || t.type === 'reserve') return;
+  donnees.noter('commence', t.id).then((ev) => {
+    annuler.enregistrer(`${t.libelle} : commencé`, () => donnees.supprimerEvenement(ev.id));
+    rafraichir();
+  });
+}
+
 function menuTache(id) {
   const t = etat.journee.find((x) => x.id === id);
   if (!t) return;
@@ -559,6 +569,7 @@ function menuTache(id) {
   ouvrirFeuille(`
     <div class="fiche-tete">${bulle}${echapper(t.libelle)}</span></div>
     <div class="menu-tache">
+      ${avecMinuteur && !t.enCours ? '<button class="choix" type="button" data-rep="commence">C\'est commencé</button>' : ''}
       <button class="choix" type="button" data-rep="plustard">Pas maintenant</button>
       <button class="choix" type="button" data-rep="modifier">Modifier</button>
       <button class="choix" type="button" data-rep="retirer">Retirer</button>
@@ -568,7 +579,8 @@ function menuTache(id) {
     const b = e.target.closest('[data-rep]');
     if (!b) return;
     const rep = b.dataset.rep;
-    if (rep === 'minuteur') lancerMinuteur(t.duree);     // dans le geste : exigé par iOS
+    if (rep === 'minuteur') { lancerMinuteur(t.duree); noterDebut(t); }     // dans le geste : exigé par iOS
+    if (rep === 'commence') noterDebut(t);
     fermerFeuille();
     if (rep === 'modifier') {
       setTimeout(() => ouvrirFeuille(`<p class="feuille-question">Pour modifier, dis-le à Kairos.</p>

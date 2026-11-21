@@ -107,9 +107,11 @@ function mesurerDuree(praxisId, maintenant) {
   const p = praxisParId(praxisId);
   if (!p || !p.duree) return null;
   const date = cleDate(maintenant);
+  // commencée (minuteur, « C'est commencé ») : la mesure part de son heure de début (21/11/2026)
+  const debut = cache.events.filter((e) => e.date === date && e.praxisId === praxisId && e.type === 'commence' && e.heure).pop();
   const precedentes = cache.events.filter((e) => e.date === date && e.heure && (e.type === 'fait' || e.type === 'minimum'));
-  if (!precedentes.length) return null;
-  const derniere = precedentes.map((e) => enMinutes(e.heure)).sort((a, b) => b - a)[0];
+  if (!debut && !precedentes.length) return null;
+  const derniere = debut ? enMinutes(debut.heure) : precedentes.map((e) => enMinutes(e.heure)).sort((a, b) => b - a)[0];
   const ecart = maintenant.getHours() * 60 + maintenant.getMinutes() - derniere;
   if (ecart <= 0 || ecart > 120) return null;
   return ecart >= p.duree / 2 && ecart <= p.duree * 2 ? ecart : null;

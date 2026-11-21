@@ -49,6 +49,7 @@ export const SCHEMA = {
           action('pause', { jusquau: S }),
           action('statut', { valeur: choix('Maison', 'Dehors', 'Travail', 'En famille', 'Auto'), jusqua: S }),
           action('minuteur', { minutes: N }),
+          action('commencer', { id: S, heure: S }),
           action('projets_semaine', { praxisIds: { type: 'array', items: S } }),
           action('barre_famille', { niveau: choix('minimum', 'normale') }),
         ],
@@ -128,6 +129,7 @@ Chaque message que je t'envoie commence par un bloc <contexte> écrit par l'appl
   - ajouter_note : une idée ou une chose à faire un autre jour. Une idée pour une praxis (« idée pour l'appli », « pour Magie ») : praxisId de cette praxis et rappel vrai, elle me sera rappelée au début de la prochaine séance. Une chose pour un autre jour : praxisId "", rappel vrai. Les idées vont dans le bloc-notes, jamais dans la mémoire.
   - retirer_note, note_rappelee, arreter_rappel.
   - modifier_praxis : seulement après mon accord explicite. duree et frequence en nombre de jours ou minutes (« 25 »), heure au format « 18h30 », importance : essentielle, utile ou bonus.
+  - commencer : quand je dis que j'ai commencé une tâche (« j'ai commencé le rangement il y a 45 minutes »), son id et l'heure de début (« 14h15 », calculée depuis l'heure du contexte). Une tâche « commencé à …, en cours » ne se redonne jamais comme à commencer : parle du temps qu'il reste.
   - mode_minimum, pause (jusquau au format AAAA-MM-JJ ; "" pour reprendre), statut (« je suis dehors » ; jusqua au format « 19h00 », ou "" pour la journée ; Auto pour revenir au statut déduit), minuteur (en minutes, quand je l'accepte), projets_semaine (identifiants des praxis choisies dimanche), barre_famille (quand j'accepte de relever ou de redescendre la barre des jours en famille).
 - memoire : ce que tu retiens durablement de moi, en phrases courtes à la première personne, comme si je les écrivais (« Je fais mes courses au travail, en fin de service, 20 minutes au plus. »). Thèmes : Planning, Préférences, Habitudes, Forme.
   - Quand je t'apprends quelque chose de durable (une habitude, une préférence, une contrainte qui revient), ton message commence par « Je retiens : … » suivi de la phrase, puis « ? », avec les bulles Oui et Corriger ; memoire reste vide. À mon Oui, écris ce fait, tel quel. Si je dis « Retiens que… », écris-le directement.
@@ -202,11 +204,12 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
     if (t.pilier) bits.push('pilier');
     else if (p?.importance) bits.push(p.importance);
     if (t.minimum && p?.minimum) bits.push(`petite version : ${p.minimum}`);
-    if (p && (p.section === 'taches' || p.section === 'long' || t.ponctuelle)) bits.push(NATURE[moteur.natureDe(p)]);
+    if (p && (p.section === 'taches' || p.section === 'long' || t.ponctuelle)) bits.push(p.section === 'long' ? 'longue' : NATURE[moteur.natureDe(p)]);
     const prec = p && t.type === 'routine' && !t.faite ? moteur.seancePrecedente(p, maintenant) : null;
     if (prec) bits.push(`séance précédente (${prec.jour} ${dateCourte(prec.date)}) ${prec.empechee ? 'empêchée' : 'non faite'}`);
     if (t.derniere !== undefined && t.derniere > 0) bits.push(`dernière fois il y a ${t.derniere} j`);
     if (t.butoir) bits.push(`avant ${t.butoir.libelle || 'une heure butoir'} à ${t.butoir.heure}`);
+    if (t.enCours && !t.faite) bits.push(`commencé à ${t.heure}, en cours`);
     l.push(`- ${bits.join(' · ')} : ${etatItem(t)}`);
   }
 
@@ -443,6 +446,12 @@ export async function appliquer(json, dit = '') {
           break;
         }
         case 'minuteur': if (a.minutes > 0) minuteur = a.minutes; break;
+        case 'commencer': {
+          if (!existe(a.id) && !d.cache.ponctuelles.some((q) => q.id === a.id)) break;
+          const ev = await d.noter('commence', a.id, /^\d{1,2}h\d{2}$/.test(a.heure || '') ? { heure: a.heure } : {});
+          defaire.push(() => d.supprimerEvenement(ev.id));
+          break;
+        }
         case 'projets_semaine': {
           const avant = d.cache.meta.projetsSemaine;
           await d.ecrireMeta('projetsSemaine', { lundi: lundiCible(), praxisIds: a.praxisIds.filter(existe) });

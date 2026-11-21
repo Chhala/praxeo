@@ -74,6 +74,12 @@ export function consigne(item, maintenant = new Date()) {
   if (idee) return `Avant de commencer : ton idée, « ${idee.libelle} ».`;
 
   const temps = item.duree < 60 ? `${item.duree} minutes` : dureeCourte(item.duree);
+  if (item.enCours) {
+    const reste = d.enMinutes(item.heure) + item.duree - (maintenant.getHours() * 60 + maintenant.getMinutes());
+    return reste > 0
+      ? `${item.libelle}, commencé à ${item.heure} : encore ${reste < 60 ? `${reste} minutes` : dureeCourte(reste)}.`
+      : `${item.libelle} : le temps prévu est passé. Touche la bulle quand c'est fini.`;
+  }
   if (item.type === 'pause') return `Pause, ${item.duree} minutes. Un tour dehors, sans écran ?`;
   if (item.type === 'repas') return `${item.libelle}, ${temps}. Une petite tâche peut se glisser pendant la cuisson.`;
   if (item.type === 'reserve') return `${item.libelle}, ${temps}.`;

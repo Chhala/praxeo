@@ -193,6 +193,19 @@ export function composer(maintenant = new Date()) {
   // Candidats flexibles : ajoutées (« En retard » → Oui), ponctuelles, tâches dues, séances au long cours
   const candidats = [];
   const vus = new Set(fixes.map((f) => f.id));
+  // Tâche commencée et pas encore validée : elle garde son heure de début, au lieu d'être replacée à l'heure actuelle (21/11/2026)
+  const debuts = new Map(evs.filter((e) => e.type === 'commence').map((e) => [e.praxisId, e.heure]));
+  for (const [id, h] of debuts) {
+    if (vus.has(id) || faits.has(id) || minis.has(id) || retires.has(id) || !h) continue;
+    const p = d.praxisParId(id);
+    const q = !p && d.cache.ponctuelles.find((x) => x.id === id);
+    if (!p && !q) continue;
+    const dureeT = p ? (p.section === 'long' ? REGLES.seanceLongCours : duree(p)) : (q.duree || 20);
+    fixes.push({ id, libelle: (p || q).libelle, heure: m(h), duree: dureeT, type: p && p.section === 'routines' ? 'routine' : 'jour', couleur: (p || q).couleur || '#A66E4E',
+      ponctuelle: !!q, enCours: true, derniere: p ? d.derniereFois(p.id) : undefined });
+    vus.add(id);
+    if (q && q.praxisId) vus.add(q.praxisId);
+  }
   // Retirer une praxis du jour la retire sous toutes ses formes : ajoutée au programme, ou tâche du jour qui la porte
   // (sinon « le linge, fais-le dimanche » laissait une copie du linge au programme, 21/11/2026)
   for (const id of ajoutees) {
@@ -290,7 +303,7 @@ export function composer(maintenant = new Date()) {
   }
 
   for (const f of fixesTries) {
-    const st = f.type === 'routine' || f.ponctuelle ? etat(f.id) : { faite: faits.has(f.id) || f.heure + f.duree <= now };
+    const st = f.type === 'routine' || f.ponctuelle || f.enCours ? etat(f.id) : { faite: faits.has(f.id) || f.heure + f.duree <= now };
     items.push({ ...f, heure: versHeure(f.heure), ...st });
   }
   for (const f of placees) {
