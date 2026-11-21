@@ -139,12 +139,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .zone-btn svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .zone-btn svg .points { stroke-width: 2.6; }
-/* bouton ⏱ du minuteur, coin bas gauche (§5.5) : deux flottants lui réservent la place */
+/* bouton ⏱ du minuteur, à gauche du bouton micro (§5.5, 21/11/2026) : le coin réservé s'élargit, le texte le contourne */
 .zone-cale-g, .zone-cale-minuteur { display: none; }
-.zone.avec-minuteur .zone-cale-g { display: block; float: left; width: 0; height: 52px; }
-.zone.avec-minuteur .zone-cale-minuteur { display: block; float: left; clear: left; width: 96px; height: 44px; }
+.zone.avec-minuteur .zone-cale-btn { width: 164px; }
 .zone-minuteur {
-  position: absolute; left: 8px; bottom: 10px; height: 38px; padding: 0 14px;
+  position: absolute; right: 60px; bottom: 10px; height: 38px; padding: 0 12px;
   border-radius: 19px; border: 1px solid var(--egee); background: var(--fond);
   font-family: var(--marcellus); font-size: 15px; color: var(--egee); white-space: nowrap;
 }

@@ -213,6 +213,7 @@ const enMinutes = donnees.enMinutes;
 function minuteurPropose() {
   const t = programmeVisible()[0];
   if (!t || estPause(t) || t.type === 'repas' || !t.heure.includes('h')) return null;
+  if (t.enCours) return null;   // déjà commencée (minuteur lancé) : on ne le repropose pas
   if (!t.butoir && t.duree < 45) return null;
   const debut = enMinutes(t.heure);
   const fin = t.butoir ? enMinutes(t.butoir.heure) : debut + t.duree;
@@ -287,6 +288,7 @@ const coach = {
       noterDebut(programmeVisible()[0]);
       this.btnMinuteur.classList.add('lance');
       this.btnMinuteur.innerHTML = `${SVG_SABLIER}lancé`;
+      setTimeout(() => this.montrerMinuteur(null), 1500);   // une fois lancé, il disparaît : le texte reprend sa place
     });
     this.btn.addEventListener('click', () => {
       if (this.reco) { this.reco.stop(); return; }
