@@ -2,7 +2,7 @@
 // Stratégie « réseau d'abord » : en ligne, on prend toujours la dernière version (et on la met en cache) ;
 // hors ligne, on sert la copie en cache. À chaque nouvelle publication, augmenter VERSION.
 
-const VERSION = 'praxeo-v2-028';
+const VERSION = 'praxeo-v2-029';
 const COQUILLE = [
   './',
   './index.html',

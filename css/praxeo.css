@@ -42,8 +42,9 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body {
+/* L'écran entier reste fixe : seule la page défile (le rebond de Safari faisait glisser l'en-tête sous la barre d'état, 21/11/2026) */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+body { position: fixed; inset: 0;
   background: var(--fond);
   color: var(--texte);
   font-family: var(--marcellus);
@@ -61,7 +62,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  padding: calc(14px + var(--haut-sur)) 16px 0;
+  padding: calc(14px + var(--haut-sur) + 8px) 16px 0;   /* + 8 px : le flou de la barre d'état déborde sous l'encoche (iPhone, 21/11/2026) */
 }
 
 /* ── En-tête commun ─────────────────────────── */
@@ -105,7 +106,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* ── Pages ──────────────────────────────────── */
 .pages { flex: 1; min-height: 0; position: relative; }
 .page {
-  height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
   display: flex; flex-direction: column; padding-top: 12px;
   overflow-x: hidden;
   scrollbar-width: none;   /* pas de barre de défilement : elle rognait la largeur */
