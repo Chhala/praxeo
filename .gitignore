@@ -1,9 +1,16 @@
 # Fichiers de travail locaux (non publiés)
 _stuff/
-app_prev.js
+_v1/app_prev.js
+
+# Conception v2 : cahier des charges et sauvegarde réelle (privés, jamais sur GitHub)
+conception/
 
 # Systèmes / éditeurs
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+# Outils locaux (serveur de test)
+_outils/
+.claude/

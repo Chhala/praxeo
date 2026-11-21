@@ -1,0 +1,525 @@
+/* ═══════════════════════════════════════════════
+   PRAXEO v2 — charte graphique (cahier des charges §6.3 et §6.4)
+   ═══════════════════════════════════════════════ */
+
+@font-face {
+  font-family: 'Cinzel';
+  src: url('../assets/fonts/cinzel-latin.woff2') format('woff2');
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Marcellus';
+  src: url('../assets/fonts/marcellus-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --fond:        #FBFBF9;
+  --marbre:      #F5F4F0;
+  --filet:       #e0ddd6;
+  --filet-fonce: #d8d5ce;
+  --texte:       #1a1a18;
+  --texte-2:     #4a453e;   /* gris foncé : contraste ≥ 4,5:1 */
+  --pointilles:  #9a948a;
+
+  --egee:     #005A92;
+  --bordeaux: #5D1935;
+  --or:       #D4AF37;
+  --ocre:     #E2953B;
+  --olive:    #6E7A68;
+  --sienne:   #A66E4E;
+  --fresco:   #3B596A;
+  --hausse:   #3E7B3A;   /* vert laurier : progression */
+  --baisse:   #A8322A;   /* rouge brique : baisse */
+
+  --cinzel:    'Cinzel', serif;
+  --marcellus: 'Marcellus', serif;
+
+  --haut-sur: env(safe-area-inset-top, 0px);
+  --bas-sur:  env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--fond);
+  color: var(--texte);
+  font-family: var(--marcellus);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+[hidden] { display: none !important; }
+
+.app {
+  zoom: var(--zoom, 1);                       /* taille du texte : Petit / Normal / Grand */
+  height: calc(100dvh / var(--zoom, 1));
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: calc(14px + var(--haut-sur)) 16px 0;
+}
+
+/* ── En-tête commun ─────────────────────────── */
+.entete { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.entete-gauche { flex: 1; min-width: 0; }
+.titre {
+  font-family: var(--cinzel);
+  font-weight: 500;
+  font-size: 18px;
+  letter-spacing: .15em;
+  text-align: left;   /* titres alignés à gauche (17/11/2026) */
+}
+.frise {
+  display: block; width: 100%; height: 7px; margin-top: 6px;
+  opacity: .35;
+}
+.frise path { fill: none; stroke: var(--texte); stroke-width: 1; }
+.entete-droite { width: 46px; height: 35px; flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; }
+.couronne {
+  position: relative; width: 46px; height: 35px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.couronne-img {
+  position: absolute; inset: 0;
+  background: var(--olive); opacity: .6;
+  -webkit-mask: url('../assets/couronne.svg') center / contain no-repeat;
+          mask: url('../assets/couronne.svg') center / contain no-repeat;
+}
+.couronne-nb {
+  position: relative; font-family: var(--cinzel); font-weight: 600;
+  font-size: 15px; color: var(--texte); padding-bottom: 2px;
+}
+.couronne-nb.long { font-size: 12px; }
+.btn-plus {
+  width: 44px; height: 44px; flex-shrink: 0;
+  margin: -4.5px -1px;   /* zone tactile de 44 px dans l'emplacement de 46 × 35 */
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-plus svg { width: 26px; height: 26px; fill: none; stroke: var(--egee); stroke-width: 2; stroke-linecap: round; }
+
+/* ── Pages ──────────────────────────────────── */
+.pages { flex: 1; min-height: 0; position: relative; }
+.page {
+  height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; padding-top: 12px;
+  overflow-x: hidden;
+  scrollbar-width: none;   /* pas de barre de défilement : elle rognait la largeur */
+}
+.page::-webkit-scrollbar { display: none; }
+.a-venir { font-size: 15px; color: var(--texte-2); text-align: center; margin-top: 40px; }
+
+/* ── Zone unique du coach (§6.1) ────────────── */
+.zone {
+  position: relative; flex-shrink: 0;
+  height: 122px;
+  background: var(--marbre);
+  border: 1px solid var(--filet);
+  border-radius: 4px 16px 16px 16px;
+  padding: 10px 12px;
+  font-size: 18px; line-height: 1.4;
+  overflow: hidden;
+}
+/* deux flottants réservent le coin du bouton : le texte le contourne */
+.zone-cale     { float: right; width: 0; height: 52px; }
+.zone-cale-btn { float: right; clear: right; width: 46px; height: 44px; }
+.zone-texte { min-height: 100%; outline: none; white-space: pre-wrap; word-break: break-word; }
+.zone-texte.saisie { color: var(--egee); }
+.zone-texte:empty::before { content: attr(data-vide); color: var(--texte-2); }
+.zone-btn {
+  position: absolute; right: 8px; bottom: 8px;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--egee);
+  display: flex; align-items: center; justify-content: center;
+}
+.zone-btn svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.zone-btn svg .points { stroke-width: 2.6; }
+/* bouton ⏱ du minuteur, coin bas gauche (§5.5) : deux flottants lui réservent la place */
+.zone-cale-g, .zone-cale-minuteur { display: none; }
+.zone.avec-minuteur .zone-cale-g { display: block; float: left; width: 0; height: 52px; }
+.zone.avec-minuteur .zone-cale-minuteur { display: block; float: left; clear: left; width: 96px; height: 44px; }
+.zone-minuteur {
+  position: absolute; left: 8px; bottom: 10px; height: 38px; padding: 0 14px;
+  border-radius: 19px; border: 1px solid var(--egee); background: var(--fond);
+  font-family: var(--marcellus); font-size: 15px; color: var(--egee); white-space: nowrap;
+}
+.zone-minuteur.lance { border-color: var(--filet-fonce); color: var(--texte-2); }
+.zone-btn.ecoute { background: var(--bordeaux); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(93, 25, 53, .45); }
+  50%      { box-shadow: 0 0 0 9px rgba(93, 25, 53, 0); }
+}
+
+/* ── Programme ──────────────────────────────── */
+.programme { list-style: none; margin-top: 4px; }
+.tache {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 40px; margin-top: 2px; cursor: pointer; user-select: none;
+  -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.heure { font-size: 15px; color: var(--texte-2); width: 48px; text-align: right; flex-shrink: 0; }
+.bulle {
+  display: inline-block;
+  font-family: var(--marcellus); font-size: 15px;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: #fff; padding: 7px 14px; border-radius: 20px;
+  transition: transform .25s ease, opacity .25s ease;
+}
+.bulle.pause { background: transparent; color: var(--texte-2); border: 1px dashed var(--pointilles); padding: 6px 13px; }
+.tache.explose .bulle { transform: scale(1.35); opacity: 0; }
+.tache.explose { transition: opacity .3s ease .2s; opacity: 0; }
+
+/* ── Lignes dépliables ──────────────────────── */
+.lignes { margin-top: auto; padding-top: 12px; }
+.ligne-tete {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  height: 44px; border-top: 1px solid var(--filet); padding: 0 4px;
+}
+.ligne-nom { font-family: var(--cinzel); font-size: 15px; letter-spacing: .15em; text-transform: uppercase; }
+.ligne-val { font-size: 15px; color: var(--texte-2); display: flex; align-items: center; gap: 6px; }
+.chevron { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; transition: transform .2s; }
+.ligne.ouverte > .ligne-tete .chevron { transform: rotate(90deg); }
+.ligne-corps { display: none; flex-wrap: wrap; gap: 8px; padding: 2px 4px 12px; }
+.ligne.ouverte .ligne-corps { display: flex; }
+.ligne-corps .bulle.faite { opacity: .45; text-decoration: line-through; }
+
+/* ── Barre de navigation ────────────────────── */
+.barre {
+  flex-shrink: 0; display: flex; justify-content: space-around;
+  border-top: 1px solid var(--filet);
+  padding: 4px 0 calc(4px + var(--bas-sur));
+}
+.onglet { width: 56px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--texte-2); }
+.onglet svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.onglet svg.trait-fin { stroke-width: 1.15; }   /* calendrier : 8 cases, trait plus fin pour le même poids visuel */
+.onglet.actif { color: var(--egee); }
+
+/* ── Onglet Praxis (§6.2) ───────────────────── */
+.recherche {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  background: var(--marbre); border: 1px solid var(--filet);
+  border-radius: 4px 16px 16px 16px; padding: 0 12px; height: 44px;
+}
+.recherche svg { width: 18px; height: 18px; fill: none; stroke: var(--texte-2); stroke-width: 1.8; stroke-linecap: round; flex-shrink: 0; }
+.recherche input {
+  flex: 1; min-width: 0; border: 0; background: none; outline: none;
+  font-family: var(--marcellus); font-size: 16px; color: var(--texte);   /* 16 px : évite le zoom de Safari à la saisie */
+}
+.recherche input::placeholder { color: var(--texte-2); }
+.lignes-praxis { margin-top: 14px; padding-bottom: 12px; }
+.lignes-praxis .ligne:last-child .ligne-tete { border-bottom: 1px solid var(--filet); }
+.praxis-corps { list-style: none; flex-direction: column; flex-wrap: nowrap; gap: 0; padding: 0 4px 8px; }
+.praxis-ligne { display: flex; align-items: center; gap: 8px; min-height: 42px; cursor: pointer; }
+.praxis-droite { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.praxis-info { font-size: 15px; color: var(--texte-2); white-space: nowrap; }
+.pastille-retard {
+  font-family: var(--marcellus); font-size: 13px; color: #fff;
+  background: var(--bordeaux); border-radius: 10px; padding: 3px 9px; white-space: nowrap;
+}
+.pastille-nb {
+  min-width: 20px; height: 20px; border-radius: 10px; padding: 0 5px;
+  background: var(--bordeaux); color: #fff; font-size: 12px;
+  display: inline-flex; align-items: center; justify-content: center; margin-right: 4px;
+}
+
+/* ── Feuille du bas (invites, fiches) ───────── */
+.voile {
+  position: fixed; inset: 0; z-index: 10;
+  background: rgba(26, 26, 24, 0); transition: background .2s;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.voile.ouvert { background: rgba(26, 26, 24, .35); }
+.feuille {
+  width: 100%; max-width: 480px; max-height: 88dvh; overflow-y: auto;
+  background: var(--fond); border-radius: 18px 18px 0 0;
+  padding: 8px 18px calc(18px + var(--bas-sur));
+  transform: translateY(100%); transition: transform .22s ease-out;
+}
+.voile.ouvert .feuille { transform: none; }
+.feuille-poignee { width: 40px; height: 4px; border-radius: 2px; background: var(--filet-fonce); margin: 0 auto 14px; }
+.feuille-question { font-size: 18px; text-align: center; }
+.feuille-sous { font-size: 15px; color: var(--texte-2); text-align: center; margin-top: 4px; }
+.feuille-choix { display: flex; gap: 10px; margin-top: 18px; }
+.choix {
+  flex: 1; height: 46px; border-radius: 23px; border: 1px solid var(--filet-fonce);
+  font-family: var(--cinzel); font-size: 15px; letter-spacing: .1em; text-transform: uppercase; color: var(--texte);
+}
+.choix-oui { background: var(--egee); border-color: var(--egee); color: #fff; }
+.choix-supprimer { color: var(--bordeaux); border-color: var(--bordeaux); }
+
+.fiche-tete { text-align: center; margin-bottom: 10px; }
+.fiche-progression { display: flex; align-items: center; gap: 12px; margin: 6px 0 4px; }
+.fiche-progression input { flex: 1; accent-color: var(--egee); }
+.fiche-pc { font-size: 15px; width: 44px; text-align: right; }
+.fiche { margin-top: 4px; }
+.fiche-rang {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 44px; border-top: 1px solid var(--filet); font-size: 15px;
+}
+.fiche-rang dt, .fiche-active span { color: var(--texte-2); }
+.fiche-rang dd { text-align: right; }
+.fiche-description { font-size: 15px; line-height: 1.45; color: var(--texte-2); border-top: 1px solid var(--filet); padding: 10px 0; }
+.segment { display: inline-flex; border: 1px solid var(--filet-fonce); border-radius: 16px; overflow: hidden; }
+.segment button { font-family: var(--marcellus); font-size: 14px; padding: 5px 10px; color: var(--texte-2); }
+.segment button + button { border-left: 1px solid var(--filet-fonce); }
+.segment button.choisi { background: var(--egee); color: #fff; }
+.interrupteur { width: 46px; height: 28px; border-radius: 14px; background: var(--filet-fonce); position: relative; transition: background .2s; }
+.interrupteur::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.interrupteur.oui { background: var(--egee); }
+.interrupteur.oui::after { transform: translateX(18px); }
+
+/* ── Onglet Stats ───────────────────────────── */
+.stats-cases { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; }
+.stats-case {
+  background: var(--marbre); border: 1px solid var(--filet); border-radius: 4px 14px 14px 14px;
+  padding: 9px 12px; display: flex; flex-direction: column; justify-content: center; gap: 2px;
+}
+.stats-serie { grid-row: span 2; align-items: center; text-align: center; }
+.stats-large { grid-column: span 2; }
+.stats-lib { font-size: 14px; color: var(--texte-2); }
+.stats-val { font-size: 20px; }
+.stats-couronne { position: relative; width: 100px; height: 76px; display: flex; align-items: center; justify-content: center; margin: 10px 0; }
+.stats-serie-nb { position: relative; top: -7px; font-family: var(--cinzel); font-weight: 600; font-size: 28px; color: var(--texte); }
+.lignes-stats { margin-top: 14px; }
+.lignes-stats .ligne:last-child .ligne-tete { border-bottom: 1px solid var(--filet); }
+.stats-corps { display: none; padding: 2px 4px 14px; }
+.ligne.ouverte .stats-corps { display: block; }
+
+.hm { display: grid; grid-template-columns: 14px repeat(20, minmax(0, 1fr)); gap: 3px; }
+.hm-col { display: grid; grid-template-rows: 14px repeat(7, auto); gap: 3px; }
+.hm-jours span { font-size: 11px; color: var(--texte-2); line-height: 1; display: flex; align-items: center; }
+.hm-mois { font-size: 10px; color: var(--texte-2); white-space: nowrap; width: 0; overflow: visible; }
+.hm-case { display: block; aspect-ratio: 1; border-radius: 2px; }
+.hm-0 { background: var(--filet); }
+.hm-1 { background: rgba(0, 90, 146, .35); }
+.hm-2 { background: var(--egee); }
+.hm-pause { background: repeating-linear-gradient(45deg, #c9c5bc 0 2px, transparent 2px 4px); }
+.hm-futur { background: transparent; }
+.hm-legende { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; margin-top: 10px; font-size: 13px; color: var(--texte-2); }
+.hm-legende .hm-case { width: 11px; height: 11px; margin-left: 6px; }
+
+.sp-liste { list-style: none; }
+.sp-ligne { padding: 8px 0; display: flex; flex-direction: column; gap: 3px; }
+.sp-ligne + .sp-ligne { border-top: 1px solid var(--filet); }
+.sp-haut { display: flex; align-items: center; gap: 8px; }
+.sp-point { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.sp-nom { flex: 1; min-width: 0; font-size: 15px; text-transform: uppercase; letter-spacing: .04em; }
+.sp-barre { width: 46px; height: 3px; border-radius: 2px; background: var(--filet); flex-shrink: 0; overflow: hidden; }
+.sp-barre span { display: block; height: 100%; }
+.sp-taux { font-size: 15px; color: var(--texte-2); min-width: 40px; text-align: right; }
+.sp-bas { font-size: 14px; color: var(--texte-2); padding-left: 18px; }
+
+.stats-aide { display: flex; justify-content: center; padding: 14px 0 18px; }
+.btn-aide {
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--filet-fonce);
+  font-family: var(--cinzel); font-size: 15px; color: var(--texte-2);
+}
+.aide-titre { font-family: var(--cinzel); letter-spacing: .1em; text-transform: uppercase; font-size: 16px; margin-bottom: 8px; }
+.aide dt { font-size: 15px; margin-top: 12px; }
+.aide dd { font-size: 15px; line-height: 1.45; color: var(--texte-2); margin-top: 2px; }
+
+/* Stats : tendance, rebond, temps, ancrage */
+.stats-detail { font-size: 12px; color: var(--texte-2); }
+.stats-val { display: flex; align-items: center; gap: 6px; }
+.tendance { display: inline-flex; width: 18px; height: 18px; }
+.tendance svg { width: 100%; height: 100%; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.tendance.hausse svg { stroke: var(--hausse); }
+.tendance.baisse svg { stroke: var(--baisse); }
+.sp-haut .tendance { width: 16px; height: 16px; flex-shrink: 0; }
+.temps-barre { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin: 6px 0 4px; background: var(--filet); }
+.temps-barre span { display: block; height: 100%; }
+.tb-routines { background: var(--egee); }
+.tb-projets  { background: var(--sienne); }
+.tb-taches   { background: var(--or); }
+.temps-legende { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--texte-2); }
+.temps-legende i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.ancrage.ancree { color: var(--hausse); }
+.ancrage.fragile { color: var(--baisse); }
+.temps { display: flex; flex-direction: column; margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--filet); }
+.temps-tete { display: flex; justify-content: space-between; align-items: baseline; }
+.temps-total { font-size: 17px; }
+
+/* ── Onglet Réglages ────────────────────────── */
+.lignes-reglages { padding-bottom: 16px; }
+.lignes-reglages .ligne:last-child .ligne-tete { border-bottom: 1px solid var(--filet); }
+.reg-corps { display: none; padding: 0 4px 14px; }
+.ligne.ouverte .reg-corps { display: block; }
+.reg-sous-titre { font-size: 15px; color: var(--texte); margin: 6px 0 8px; }
+.reg-texte { font-size: 14px; color: var(--texte-2); margin-top: 6px; line-height: 1.4; }
+.reg-aide { font-size: 13px; color: var(--texte-2); font-style: italic; margin: 8px 0 4px; }
+.reg-rang {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 48px; border-top: 1px solid var(--filet); padding: 6px 0; margin-top: 4px;
+}
+.reg-lib { font-size: 15px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.reg-note { font-size: 12px; color: var(--texte-2); }
+.reg-ctrl { flex-shrink: 0; display: flex; align-items: center; }
+.reg-valeur { font-size: 17px; }
+.reg-bouton {
+  font-family: var(--marcellus); font-size: 14px; color: var(--egee);
+  border: 1px solid var(--egee); border-radius: 16px; padding: 6px 12px; white-space: nowrap;
+}
+.reg-bouton.danger { color: var(--baisse); border-color: var(--baisse); }
+.reg-lien { font-family: var(--marcellus); font-size: 12px; color: var(--egee); text-decoration: underline; text-align: left; padding: 0; }
+.reg-cle { flex-direction: column; align-items: stretch; }
+.reg-saisie { display: flex; gap: 8px; }
+.reg-saisie input, .reg-date input {
+  flex: 1; min-width: 0; height: 36px; padding: 0 10px; font-family: var(--marcellus); font-size: 16px;
+  border: 1px solid var(--filet-fonce); border-radius: 4px 12px 12px 12px; background: var(--marbre); color: var(--texte);
+}
+.reg-date { display: flex; align-items: center; gap: 10px; font-size: 15px; margin-top: 14px; }
+
+.semaines { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.semaine { background: var(--marbre); border: 1px solid var(--filet); border-radius: 4px 12px 12px 12px; padding: 8px 10px; }
+.sem-titre { font-family: var(--cinzel); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
+.semaine ul { list-style: none; }
+.semaine li { font-size: 12px; color: var(--texte-2); line-height: 1.35; padding: 2px 0; }
+.sem-jour { display: inline-block; width: 30px; color: var(--texte); }
+
+.memoire { border-top: 1px solid var(--filet); }
+.memo-tete { width: 100%; display: flex; justify-content: space-between; align-items: center; min-height: 42px; font-size: 15px; }
+.memo + .memo .memo-tete { border-top: 1px dashed var(--filet); }
+.memo-faits { list-style: none; display: none; padding-bottom: 6px; }
+.memo.ouverte .memo-faits { display: block; }
+.memo.ouverte .chevron { transform: rotate(90deg); }
+.memo-faits li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.4; color: var(--texte-2); padding: 5px 0; }
+.memo-faits li span { flex: 1; }
+.memo-oubli { width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin: -4px -4px 0 0; }
+.memo-oubli svg { width: 14px; height: 14px; fill: none; stroke: var(--texte-2); stroke-width: 2; stroke-linecap: round; }
+.carnet { list-style: none; padding: 4px 0 8px; }
+.carnet li { font-size: 13px; line-height: 1.4; padding: 4px 0; }
+.carnet-auteur { color: var(--texte-2); }
+
+.attention { color: var(--baisse); }
+.choix.arme { background: var(--baisse); color: #fff; }
+.choix-annuler { width: 100%; margin-top: 10px; border: 0; color: var(--texte-2); }
+
+.menu-tache { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.menu-tache .choix { flex: none; width: 100%; }
+
+.reg-boutons { display: flex; gap: 6px; }
+.guide { padding-left: 22px; margin-top: 12px; }
+.guide li { font-size: 15px; line-height: 1.45; padding: 4px 0; }
+
+/* Sablier (minuteur) */
+.sablier { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; margin-right: 6px; }
+.sablier .sable { fill: currentColor; stroke: none; }
+.zone-minuteur { display: inline-flex; align-items: center; }
+.choix .sablier { margin-right: 8px; }
+
+.semaine li { display: flex; }
+.sem-jour { flex-shrink: 0; }
+.sem-texte { display: flex; flex-direction: column; }
+.sem-heures { font-size: 9.5px; color: var(--texte-2); opacity: .8; margin-top: 1px; }
+
+/* Nouvelle praxis */
+.nuancier { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.nuance { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; }
+.nuance.choisie { border-color: var(--fond); box-shadow: 0 0 0 2px var(--texte); }
+.feuille-erreur { font-size: 14px; color: var(--baisse); margin-top: 8px; }
+
+/* Fiche modifiable (lot 1) */
+.fiche-nom {
+  display: block; width: 100%; max-width: 280px; margin: 0 auto; text-align: center;
+  font-family: var(--marcellus); font-size: 16px; text-transform: uppercase; letter-spacing: .04em;
+  color: #fff; border: 0; border-radius: 20px; padding: 8px 14px; outline: none;
+}
+.fiche-champ {
+  font-family: var(--marcellus); font-size: 16px; color: var(--texte); text-align: right;
+  border: 0; border-bottom: 1px dashed var(--filet-fonce); background: transparent; padding: 4px 2px; max-width: 170px; outline: none;
+}
+.fiche-champ:focus { border-bottom-color: var(--egee); }
+.fiche-nombre { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; }
+.fiche-nombre input { width: 54px; }
+textarea.fiche-description { width: 100%; max-width: none; text-align: left; resize: vertical; margin-top: 4px; border: 1px solid var(--filet); border-radius: 4px 12px 12px 12px; padding: 8px 10px; }
+.fiche-jours { display: inline-flex; gap: 4px; }
+.jour { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--filet-fonce); font-size: 13px; color: var(--texte-2); }
+.jour.choisi { background: var(--egee); border-color: var(--egee); color: #fff; }
+
+/* Bandeau du questionnaire (Praxis) */
+.bandeau {
+  width: 100%; text-align: left; margin-bottom: 12px; padding: 10px 12px;
+  background: var(--marbre); border: 1px solid var(--or); border-radius: 4px 14px 14px 14px;
+  font-family: var(--marcellus); font-size: 14px; line-height: 1.4; color: var(--texte);
+}
+.bandeau span { display: block; margin-top: 4px; color: var(--egee); }
+.nouveau-ponctuelle .reg-date { margin-top: 10px; }
+.segment button { white-space: nowrap; }
+
+/* Bloc-notes (lot 1) */
+.note-saisie {
+  flex: 1 1 100%; margin-top: 4px; padding: 7px 10px; font-family: var(--marcellus); font-size: 16px;
+  border: 1px dashed var(--filet-fonce); border-radius: 4px 14px 14px 14px; background: transparent; color: var(--texte); outline: none;
+}
+.note-saisie:focus { border-color: var(--egee); }
+.bulle.explose-note { transform: scale(1.3); opacity: 0; }
+
+/* Planning modifiable (lot 1) */
+.sem-ligne { display: flex; width: 100%; text-align: left; padding: 2px 0; font: inherit; color: inherit; }
+.vacances { list-style: none; }
+.vac-ligne { display: block; width: 100%; text-align: left; font-size: 14px; color: var(--texte-2); padding: 6px 0; border-bottom: 1px dashed var(--filet); }
+.reg-heures { display: inline-flex; gap: 6px; }
+.reg-heures input, .fiche-rang input[type=time] { font-family: var(--marcellus); font-size: 16px; border: 1px solid var(--filet-fonce); border-radius: 8px; padding: 3px 6px; background: var(--marbre); color: var(--texte); }
+
+.reg-matin { display: block; width: 100%; text-align: left; font-family: var(--marcellus); font-size: 14px; line-height: 1.4; color: var(--texte); padding: 8px 10px; margin-top: 8px; background: var(--marbre); border: 1px solid var(--filet); border-radius: 4px 12px 12px 12px; }
+
+/* Annuler (lot 3) : mention temporaire au-dessus de la barre */
+.toast {
+  position: fixed; left: 50%; bottom: calc(66px + var(--bas-sur)); transform: translate(-50%, 12px);
+  width: min(92vw, 440px); display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--texte); color: var(--fond); border-radius: 4px 14px 14px 14px; padding: 8px 8px 8px 14px;
+  font-family: var(--marcellus); font-size: 15px; opacity: 0; transition: opacity .2s, transform .2s; z-index: 5;
+}
+.toast.visible { opacity: 1; transform: translate(-50%, 0); }
+.toast-texte { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-annuler { font-family: var(--cinzel); font-size: 14px; letter-spacing: .1em; text-transform: uppercase; color: var(--or); padding: 6px 10px; }
+
+/* ── Le coach parle (lot 4) ─────────────────── */
+.zone { touch-action: manipulation; }   /* double toucher sans zoom ni délai */
+.zone-texte.attente { color: var(--texte-2); animation: attente 1.2s ease-in-out infinite; }
+@keyframes attente { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+/* mots mis en valeur par le coach ; un élément du bloc-notes se touche (§5.4) */
+.zone-texte .mot { font-weight: normal; color: var(--egee); }
+.zone-texte .mot[data-note] { border-bottom: 1px dotted var(--egee); cursor: pointer; }
+.zone-texte .mot.explose-mot { display: inline-block; transform: scale(1.4); opacity: 0; transition: transform .3s ease, opacity .3s ease; }
+/* réponses rapides en bulles, sous la zone (§5.5) */
+.reponses { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.reponse {
+  font-family: var(--marcellus); font-size: 15px; color: var(--egee);
+  border: 1px solid var(--egee); background: var(--fond); border-radius: 18px; padding: 6px 14px; min-height: 36px;
+}
+.reponse:active { background: var(--egee); color: #fff; }
+/* mode comparaison (§9) : deux réponses côte à côte */
+.comparaison { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 14px; }
+.comp-col { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--filet); border-radius: 4px 14px 14px 14px; padding: 10px; }
+.comp-modele { font-family: var(--cinzel); font-size: 14px; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-2); }
+.comp-texte { font-size: 16px; line-height: 1.4; flex: 1; }
+.comp-info { font-size: 13px; color: var(--texte-2); }
+
+/* mémoire du coach : chaque fait daté, touché pour le corriger (§5.7, lot 4) */
+.memo-fait { flex: 1; text-align: left; font: inherit; color: inherit; line-height: 1.4; }
+.memo-date { display: block; font-size: 12px; color: var(--texte-2); opacity: .8; margin-top: 1px; }
+.fait-saisie {
+  width: 100%; margin-top: 14px; padding: 10px 12px; resize: none;
+  font-family: var(--marcellus); font-size: 16px; line-height: 1.4; color: var(--texte);
+  background: var(--marbre); border: 1px solid var(--filet); border-radius: 4px 14px 14px 14px; outline: none;
+}
+.fait-themes { margin-top: 12px; display: flex; justify-content: center; }
+.comp-col .choix { width: 100%; min-height: 44px; }
+
+/* Ma semaine : une semaine à la fois, glisser pour changer ; deux points indiquent la marche à suivre (20/11/2026) */
+.semaines { grid-template-columns: 1fr; touch-action: pan-y; }
+.semaine li { font-size: 13.5px; padding: 3px 0; }
+.sem-jour { width: 38px; }
+.sem-heures { font-size: 11px; }
+.sem-points { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+.sem-point { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+.sem-point::before { content: ''; width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--texte-2); }
+.sem-point.actif::before { background: var(--texte-2); }
+
+/* Durée prévue après chaque bulle du programme, plus petite que l'heure : pour juger les temps proposés (21/11/2026) */
+.tache .duree { font-size: 12px; color: var(--texte-2); opacity: .8; flex-shrink: 0; white-space: nowrap; }

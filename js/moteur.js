@@ -1,0 +1,357 @@
+// PRAXEO v2 — moteur local (lot 2), sans IA : compose la journée, tient la série, gère le mode minimum.
+// Cahier des charges : §1 (amphore : pierres, gravier, sable), §4 (planning, statuts), §5.8 à §5.10, §6.1.
+// Le coach (lot 4) arbitrera et rédigera ; ce moteur fonctionne seul, hors ligne et gratuitement.
+
+import * as d from './donnees.js';
+import { normaliser } from './estimations.js';
+import { plagesFamille } from './contenu.js';
+
+const m = d.enMinutes;
+// Horaires ronds (20/11/2026) : on place tout sur les 5 minutes, pas « 17h31 »
+const cinq = (min) => Math.ceil(min / 5) * 5;
+const versHeure = (min) => `${Math.floor(min / 60)}h${String(Math.round(min) % 60).padStart(2, '0')}`;
+
+// ── Réglages du moteur (points de départ, ajustables par la mémoire du coach) ──
+export const REGLES = {
+  marge: 0.25,             // 25 % du temps libre jamais planifié (§5.9)
+  retourAuCalme: '21h30',  // plus rien de nouveau après (§4.1)
+  pierre: 30,              // au-delà : une pierre ; 6 à 30 : gravier ; ≤ 5 : sable (§1, règle interne)
+  sable: 5,
+  seanceLongCours: 45,     // durée d'une séance sur un projet au long cours
+  pauseCourte: 10,         // après 25 à 45 min de tâches enchaînées (§5.9)
+  pauseLongue: 15,         // après une pierre
+  effortAvantPause: 40,
+  dejeuner: 45,            // à la maison quand l'après-midi n'est pas travaillé (§4.1)
+  diner: 60,
+  dinerFamille: 75,
+  heureDiner: '19h00',
+  heureDinerFamille: '18h45',
+};
+
+// ── Mode minimum (§5.10 point 6) : 7 jours au plus, série gelée ──
+export function modeMinimum(date = d.aujourdhui()) {
+  const mm = d.cache.meta.modeMinimum;
+  return !!(mm && mm.debut <= date && date <= mm.fin);
+}
+// Sortie progressive (20/11/2026) : après le mode minimum, 4 jours de remontée —
+// les piliers en entier, les autres routines en petite version, pas de longue séance ; puis le rythme habituel.
+export const JOURS_REMONTEE = 4;
+export function remontee(date = d.aujourdhui()) {
+  const mm = d.cache.meta.modeMinimum;
+  if (!mm || date <= mm.fin) return null;
+  const [a, mo, j] = mm.fin.split('-').map(Number);
+  const debut = d.cleDate(new Date(a, mo - 1, j + 1));
+  const fin = d.cleDate(new Date(a, mo - 1, j + JOURS_REMONTEE));
+  return date >= debut && date <= fin ? { debut, fin } : null;
+}
+export async function demarrerModeMinimum(jours = 7) {
+  const debut = d.aujourdhui();
+  const fin = new Date(); fin.setDate(fin.getDate() + jours - 1);
+  await d.ecrireMeta('modeMinimum', { debut, fin: d.cleDate(fin) });
+}
+export async function arreterModeMinimum() {
+  const mm = d.cache.meta.modeMinimum;
+  if (!mm) return;
+  const hier = new Date(); hier.setDate(hier.getDate() - 1);
+  // arrêté le jour même où il a commencé : il n'a jamais eu lieu (sinon il restait actif jusqu'au soir)
+  await d.ecrireMeta('modeMinimum', d.cleDate(hier) < mm.debut ? null : { ...mm, fin: d.cleDate(hier) });
+}
+const enPause = (date) => { const f = d.cache.meta.pauseJusquau; return !!(f && f >= date); };
+
+// ── Durées apprises (§5.9) : médiane des 5 dernières mesures retenues, à partir de 3 ──
+export function dureeApprise(p) {
+  const mesures = d.cache.events.filter((e) => e.praxisId === p.id && e.dureeReelle).slice(-5).map((e) => e.dureeReelle).sort((a, b) => a - b);
+  if (mesures.length < 3) return null;
+  return mesures[Math.floor(mesures.length / 2)];
+}
+// Sans historique, marge de 25 % sur l'estimation (erreur de planification)
+const duree = (p) => Math.max(5, Math.round((dureeApprise(p) ?? (p.duree || 20) * (p.origine === 'v1' || !p.duree ? 1.25 : 1)) / 5) * 5);
+
+// ── Score d'une tâche : urgence × importance (§5.1) ──
+const POIDS = { essentielle: 3, utile: 2, bonus: 1 };
+function score(p) {
+  const der = d.derniereFois(p.id);
+  if (p.section === 'long') return (POIDS[p.importance] || 1) * Math.min(3, ((der ?? 14) + 1) / 7);
+  if (!p.frequence) return 0;
+  const urgence = der === undefined ? 0.4 : der / p.frequence;   // ≥ 1 : due ou en retard ; sans date : peu urgente
+  return urgence * (POIDS[p.importance] || 2);
+}
+const taille = (min) => (min > REGLES.pierre ? 'pierre' : min <= REGLES.sable ? 'sable' : 'gravier');
+// Nature d'une tâche : d'après sa durée déclarée (la marge de planification ne change pas sa nature, 20/11/2026)
+export const natureDe = (p) => taille(p.duree || duree(p));
+const estMatinale = (p) => p.heure && m(p.heure) < 9 * 60;
+const estLit = (p) => normaliser(p.libelle) === 'FAIRE LE LIT';
+const enFamilleA = (j, min) => plagesFamille(j).some(([de, a]) => min >= m(de) && min < m(a));
+
+// Séance précédente d'une routine à jours fixes (la boxe du mardi, vue le lundi suivant) :
+// null si elle a été faite (ou s'il n'y en a pas), sinon { jour, date, empechee } (20/11/2026)
+const JOURS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+export function seancePrecedente(p, maintenant = new Date()) {
+  if (!p.jours || p.jours.length >= 7) return null;   // les routines quotidiennes : c'est « hier » qui le dit
+  const x = new Date(maintenant);
+  for (let i = 1; i <= 7; i++) {
+    x.setDate(x.getDate() - 1);
+    if (!p.jours.map(Number).includes(d.jourSemaine(x))) continue;
+    const cle = d.cleDate(x);
+    if (d.cache.jours.get(cle)?.niveau === 'pause') return null;
+    const evs = d.cache.events.filter((e) => e.date === cle && e.praxisId === p.id);
+    if (evs.some((e) => e.type === 'fait' || e.type === 'minimum')) return null;
+    return { jour: JOURS_FR[x.getDay()], date: cle, empechee: evs.some((e) => e.type === 'empeche') };
+  }
+  return null;
+}
+
+// ═══ Composition de la journée ═════════════════
+// Renvoie la journée entière (faite ou non), dans l'ordre : le programme affiché en tire les 8 premières non faites.
+export function composer(maintenant = new Date()) {
+  const date = d.cleDate(maintenant);
+  const dow = d.jourSemaine(maintenant);
+  const j = d.jourDuPlanning(maintenant);
+  const vacances = d.enVacancesScolaires(maintenant);
+  const minimum = modeMinimum(date);
+  const remonte = !minimum && !!remontee(date);
+  const now = maintenant.getHours() * 60 + maintenant.getMinutes();
+  if (enPause(date)) return { items: [], pause: true, minimum };
+
+  const evs = d.cache.events.filter((e) => e.date === date);
+  const ens = (...types) => new Set(evs.filter((e) => types.includes(e.type)).map((e) => e.praxisId));
+  const faits = ens('fait'), minis = ens('minimum'), retires = ens('retire', 'empeche'), reportes = ens('reporte');
+  const ajoutees = evs.filter((e) => e.type === 'ajoute').map((e) => e.praxisId);
+  const etat = (id) => ({ faite: faits.has(id) || minis.has(id), enMinimum: minis.has(id) });
+
+  const items = [];
+  const routinesDuJour = d.cache.praxis.filter((p) => (p.section === 'piliers' || p.section === 'routines')
+    && (!p.jours || p.jours.includes(dow)) && !retires.has(p.id)
+    // Boxe : gymnase fermé pendant les vacances scolaires (§4.1), sans compter comme ratée
+    && !(vacances && normaliser(p.libelle) === 'BOXE'));
+  const garder = (p) => !minimum || p.section === 'piliers';
+
+  // ── 1. Le matin : du lever à la fin de la fenêtre (§4.1) ──
+  const lever = m(j.lever);
+  const finMatin = m(d.finFenetreMatin(maintenant) || '7h30');
+  const douche = (d.planning().matin || {}).douche || 0;
+  // Les jours travaillés, le lit se fait juste avant de partir (vers 7h10 pour un départ à 7h30, 21/11/2026)
+  const depart = j.travail !== 'aucun' ? d.departDuJour(maintenant) : null;
+  const heureMatin = (p) => (estLit(p) && depart ? m(depart) - 20 : m(p.heure));
+  const matinales = routinesDuJour.filter(estMatinale).filter(garder).sort((a, b) => heureMatin(a) - heureMatin(b));
+  const besoin = matinales.reduce((s, p) => s + (p.duree || 10), 0) + douche;
+  const matinCourt = minimum || remonte || besoin > finMatin - lever;   // pas le temps de tout, ou remontée : petite version (§5.10)
+  const versSoir = [];
+  let t = lever;
+  let doucheFaite = false;
+  for (const p of matinales) {
+    const st = etat(p.id);
+    const min = matinCourt && p.minimum && p.section !== 'piliers' ? 2 : (p.duree || 10);
+    const litAvantDepart = estLit(p) && !!depart;
+    const heureNormale = litAvantDepart ? heureMatin(p) : Math.max(t, m(p.heure));
+    // Passé l'heure : « trop tard » pour les routines du matin, sauf le lit et ce qui se fait partout (Lexis)
+    // (le lit d'avant le départ reste possible jusqu'au départ, même quand la fenêtre se ferme plus tôt avec ma fille)
+    if (!st.faite && now > (litAvantDepart ? m(depart) : finMatin)) {
+      if (estLit(p) || (p.lieu || '').toLowerCase() === 'partout') versSoir.push(p);
+      continue;
+    }
+    items.push({ id: p.id, heure: versHeure(heureNormale), libelle: p.libelle, couleur: p.couleur, duree: min,
+      type: 'routine', pilier: p.section === 'piliers', minimum: matinCourt && !!p.minimum && p.section !== 'piliers', derniere: d.derniereFois(p.id), ...st });
+    if (!litAvantDepart) t = heureNormale + min;
+    // la douche suit le lever (après la première routine, « pieds au sol ») ; les jours de repos, après le lit comme avant
+    if (douche && !doucheFaite && (depart ? !litAvantDepart : estLit(p))) {
+      items.push({ id: 'reserve_douche', heure: versHeure(t), libelle: 'Douche', duree: douche, type: 'reserve', faite: faits.has('reserve_douche') || now > t + douche });
+      t += douche;
+      doucheFaite = true;
+    }
+  }
+  // jour travaillé sans autre routine du matin (le samedi) : la douche suit le lever
+  if (douche && !doucheFaite && depart) items.push({ id: 'reserve_douche', heure: versHeure(lever), libelle: 'Douche', duree: douche, type: 'reserve', faite: faits.has('reserve_douche') || now > lever + douche });
+
+  // ── 2. La journée et le soir ──
+  const debutApresMidi = { journee: m('18h00'), matin: m('13h30'), aucun: m('9h00') }[j.travail] ?? m('18h00');
+  const finJournee = m(REGLES.retourAuCalme);
+  const famille = (min) => enFamilleA(j, min);
+
+  // Blocs fixes : repas, routines à heure fixe du soir, lecture du retour au calme
+  const fixes = [];
+  if (j.travail !== 'journee') fixes.push({ id: 'repas_dejeuner', libelle: 'Déjeuner', heure: Math.max(debutApresMidi, m('12h30')), duree: REGLES.dejeuner, type: 'repas', couleur: '#6E7A68' });
+  const dinerFamille = famille(m(REGLES.heureDiner));
+  fixes.push({ id: 'repas_diner', libelle: 'Dîner', heure: m(dinerFamille ? REGLES.heureDinerFamille : REGLES.heureDiner), duree: dinerFamille ? REGLES.dinerFamille : REGLES.diner, type: 'repas', couleur: '#6E7A68' });
+  for (const p of routinesDuJour.filter((x) => !estMatinale(x)).filter(garder)) {
+    const petite = !!p.minimum && (minimum || (remonte && p.section !== 'piliers'));   // remontée : piliers en entier, le reste en petit
+    fixes.push({ id: p.id, libelle: p.libelle, heure: m(p.heure || REGLES.retourAuCalme), duree: petite ? 5 : (p.duree || 20), type: 'routine', couleur: p.couleur, pilier: p.section === 'piliers', minimum: petite, derniere: d.derniereFois(p.id) });
+  }
+  // Le lit oublié le matin revient en rentrant, avec un peu de rangement (§4.1) ; Lexis aussi
+  // Passé le retour au calme, plus de lit : c'est l'heure de se coucher (19/11/2026)
+  for (const p of versSoir) {
+    if (estLit(p) && now >= finJournee) continue;
+    fixes.push({ id: p.id, libelle: p.libelle, heure: cinq(Math.max(now, debutApresMidi)), duree: p.duree || 10, type: 'routine', couleur: p.couleur, pilier: p.section === 'piliers', derniere: d.derniereFois(p.id), rattrapage: true });
+  }
+  // Le soir, ce qui demande de la concentration (Lexis rattrapé) passe avant la lecture du retour au calme :
+  // la fatigue aidant, on lit en dernier (19/11/2026)
+  const finRattrapages = Math.max(0, ...fixes.filter((f) => f.rattrapage && !etat(f.id).faite).map((f) => f.heure + f.duree));
+  for (const f of fixes) {
+    if (f.type === 'routine' && !f.rattrapage && f.heure >= finJournee && f.heure < finRattrapages && !etat(f.id).faite) f.heure = finRattrapages;
+  }
+
+  // Candidats flexibles : ajoutées (« En retard » → Oui), ponctuelles, tâches dues, séances au long cours
+  const candidats = [];
+  const vus = new Set(fixes.map((f) => f.id));
+  for (const id of ajoutees) {
+    const p = d.praxisParId(id);
+    if (p && !vus.has(id)) { candidats.push({ p, force: true }); vus.add(id); }
+  }
+  for (const q of d.cache.ponctuelles) {
+    const due = (q.date && q.date <= date) || (!q.date && q.echeance);
+    // une séance fixée par le coach (« Masques jusqu'à 16h30 ») : un bloc à heure fixe, aujourd'hui
+    if (due && q.heure && q.date === date && !retires.has(q.id)) {
+      fixes.push({ id: q.id, libelle: q.libelle, heure: m(q.heure), duree: q.duree || 20, type: 'jour', ponctuelle: true, couleur: q.couleur || '#A66E4E', ...(q.butoir ? { butoir: q.butoir } : {}) });
+      vus.add(q.id);
+      continue;
+    }
+    if (due && !retires.has(q.id)) candidats.push({ p: { ...q, section: 'ponctuelle', importance: q.importance || 'utile' }, force: !!q.date, ponctuelle: true });
+  }
+  if (!minimum) {
+    const dues = d.cache.praxis
+      .filter((p) => (p.section === 'taches' || p.section === 'long') && !vus.has(p.id) && !retires.has(p.id))
+      .map((p) => ({ p, s: score(p) }))
+      .filter(({ p, s }) => (p.section === 'long' ? s >= 1 : s >= 0.9))
+      .filter(({ p }) => (p.lieu || '').toLowerCase() !== 'travail')   // ce qui se fait au travail (les courses) n'occupe pas le temps libre
+      .filter(({ p }) => !remonte || (p.section !== 'long' && natureDe(p) !== 'pierre'))   // remontée : pas de longue séance
+      .sort((a, b) => b.s - a.s);
+    dues.forEach(({ p }) => candidats.push({ p }));
+  }
+
+  // Un repas retiré à ma demande (« je dîne chez des amis ») sort du programme (20/11/2026)
+  for (let i = fixes.length - 1; i >= 0; i--) if (fixes[i].type === 'repas' && retires.has(fixes[i].id)) fixes.splice(i, 1);
+
+  // Capacité du soir : temps libre restant, moins les blocs fixes, moins la marge
+  const debut = Math.max(now, debutApresMidi);
+  const occupe = fixes.filter((f) => f.heure + f.duree > debut && f.heure < finJournee).reduce((s, f) => s + f.duree, 0);
+  // remontée après le mode minimum : la moitié du temps libre reste vide, au lieu du quart
+  let capacite = Math.max(0, (finJournee - debut - occupe) * (1 - (remonte ? 0.5 : REGLES.marge)));
+
+  // Ordre de l'amphore : forcées, puis pierres, gravier, sable ; en famille, seulement le sable et le petit gravier
+  const ordre = { pierre: 0, gravier: 1, sable: 2 };
+  const flexibles = [];
+  // Projets au long cours : une séance par jour, deux les jours de repos (on avance régulièrement, sans tout envahir)
+  let seancesLongCours = j.travail === 'aucun' ? 2 : 1;
+  for (const c of candidats.sort((a, b) => (b.force - a.force) || ordre[natureDe(a.p)] - ordre[natureDe(b.p)])) {
+    if (c.p.section === 'long' && !c.force) {
+      if (seancesLongCours <= 0) continue;
+      if (d.derniereFois(c.p.id) === 0) continue;   // déjà avancé aujourd'hui
+    }
+    const min = c.p.section === 'long' ? REGLES.seanceLongCours : duree(c.p);
+    if (!c.force && min > capacite) continue;
+    if (!c.force && famille(debut) && min > 15) continue;
+    if (!c.force && c.p.presence === 'Seul' && famille(debut)) continue;
+    capacite -= min;
+    if (c.p.section === 'long' && !c.force) seancesLongCours--;
+    flexibles.push({ id: c.p.id, force: !!c.force, libelle: c.p.libelle, couleur: c.p.couleur || '#A66E4E', duree: min,
+      type: c.ponctuelle || c.p.section === 'taches' || c.p.section === 'long' ? 'jour' : 'routine',
+      ponctuelle: !!c.ponctuelle, longCours: c.p.section === 'long', taille: c.p.section === 'long' ? 'pierre' : natureDe(c.p), derniere: c.ponctuelle ? undefined : d.derniereFois(c.p.id) });
+  }
+
+  // Placement : on remplit les créneaux entre les blocs fixes, avec une pause après l'effort (§5.9)
+  const reportees = flexibles.filter((f) => reportes.has(f.id));
+  const aPlacer = [...flexibles.filter((f) => !reportes.has(f.id)), ...reportees];
+  const placees = [];
+  const fixesTries = fixes.slice().sort((a, b) => a.heure - b.heure || (a.rattrapage ? -1 : 0));
+  for (let i = 1; i < fixesTries.length; i++) {
+    const fin = fixesTries[i - 1].heure + fixesTries[i - 1].duree;
+    if (fixesTries[i].heure < fin && fixesTries[i].heure < finJournee + 30) fixesTries[i].heure = fin;
+  }
+  let curseur = cinq(Math.max(now, debutApresMidi));   // on ne place rien dans le passé, et à l'heure ronde
+  let effort = 0;
+  const prochainFixe = (c) => fixesTries.find((f) => f.heure + f.duree > c);
+  for (const f of aPlacer) {
+    for (let essais = 0; essais < 12; essais++) {
+      const fx = prochainFixe(curseur);
+      if (fx && curseur >= fx.heure) { curseur = fx.heure + fx.duree; effort = 0; continue; }
+      if (fx && curseur + f.duree > fx.heure) { curseur = fx.heure + fx.duree; effort = 0; continue; }
+      break;
+    }
+    if (!f.force && famille(curseur) && f.duree > 15) continue;
+    if (curseur + f.duree > finJournee && !f.force) continue;
+    placees.push({ ...f, heureMin: curseur });
+    curseur += f.duree;
+    effort += f.duree;
+    const pause = f.taille === 'pierre' ? REGLES.pauseLongue : effort >= REGLES.effortAvantPause ? REGLES.pauseCourte : 0;
+    const suivant = prochainFixe(curseur);
+    if (pause && curseur + pause < finJournee && (!suivant || curseur + pause <= suivant.heure)) {
+      placees.push({ id: `pause_${curseur}`, libelle: 'Pause', duree: pause, type: 'pause', heureMin: curseur });
+      curseur += pause;
+      effort = 0;
+    }
+  }
+
+  for (const f of fixesTries) {
+    const st = f.type === 'routine' || f.ponctuelle ? etat(f.id) : { faite: faits.has(f.id) || f.heure + f.duree <= now };
+    items.push({ ...f, heure: versHeure(f.heure), ...st });
+  }
+  for (const f of placees) {
+    const st = f.type === 'pause' ? { faite: faits.has(f.id) || f.heureMin + f.duree <= now } : etat(f.id);
+    items.push({ ...f, heure: versHeure(f.heureMin), reportee: reportes.has(f.id), ...st });
+  }
+  items.sort((a, b) => m(a.heure) - m(b.heure));
+  return { items, minimum, remonte, matinCourt, pause: false };
+}
+
+// ═══ Niveau du jour et série (§5.10 point 8) ════
+// L'essentiel du jour : les piliers prévus (en version normale) et les tâches essentielles prévues.
+export function essentielDuJour(maintenant = new Date()) {
+  const { items } = composer(maintenant);
+  return items.filter((x) => x.pilier || (x.type === 'jour' && (d.praxisParId(x.id)?.importance === 'essentielle')));
+}
+
+// maintenant : un autre jour pour recompter la veille (« Hier, la poussière : faite ? » → oui, §5.9)
+export async function majNiveauDuJour(maintenant = new Date()) {
+  const date = d.cleDate(maintenant);
+  const evs = d.cache.events.filter((e) => e.date === date);
+  const faits = new Set(evs.filter((e) => e.type === 'fait').map((e) => e.praxisId));
+  const touches = new Set(evs.filter((e) => e.type === 'fait' || e.type === 'minimum').map((e) => e.praxisId));
+  const essentiel = essentielDuJour(maintenant);
+  const famille = plagesFamille(d.jourDuPlanning(maintenant)).length > 0;
+  // En famille, les piliers en version minimum suffisent (§5.10, validé le 19/11/2026),
+  // sauf si le coach a relevé la barre (j'en fais habituellement davantage ces jours-là)
+  const barreBasse = (d.cache.meta.barreFamille || 'minimum') === 'minimum';
+  const fait = (x) => faits.has(x.id) || (famille && barreBasse && touches.has(x.id));
+  const niveau = essentiel.length && essentiel.every(fait) ? 2 : touches.size ? 1 : 0;
+  const jour = { date, niveau, minimum: modeMinimum(date), source: 'v2' };
+  d.cache.jours.set(date, jour);
+  await (await import('./db.js')).ecrire('jours', jour);
+  return niveau;
+}
+
+// Série : journées « l'essentiel » d'affilée ; un joker par semaine (jour minimum ou raté) ;
+// deux jours ratés d'affilée la cassent toujours ; pause neutre ; mode minimum : série gelée.
+export function serie() {
+  let n = 0;
+  let jokerUtilise = new Map();   // semaine (lundi) → joker consommé
+  let veilleRatee = false;
+  const curseur = new Date();
+  for (let i = 0; i < 500; i++) {
+    const cle = d.cleDate(curseur);
+    const jour = d.cache.jours.get(cle);
+    const lundi = new Date(curseur); lundi.setDate(lundi.getDate() - ((lundi.getDay() + 6) % 7));
+    const semaine = d.cleDate(lundi);
+    curseur.setDate(curseur.getDate() - 1);
+    if (i === 0 && (!jour || jour.niveau !== 2)) continue;   // aujourd'hui ne compte qu'une fois réussi
+    if (jour && (jour.niveau === 'pause' || jour.minimum)) { veilleRatee = false; continue; }
+    if (jour && jour.niveau === 2) { n++; veilleRatee = false; continue; }
+    if (!jour && n === 0 && i < 2) continue;                  // hier pas encore enregistré
+    // Jour raté ou en version minimum
+    if (veilleRatee) break;                                   // ne jamais rater deux fois
+    if (jokerUtilise.get(semaine)) break;                     // deuxième dans la semaine
+    jokerUtilise.set(semaine, true);
+    veilleRatee = true;
+  }
+  return n;
+}
+export const record = () => Math.max(d.cache.meta.record || 0, serie());
+
+export function jokerDeLaSemaine(maintenant = new Date()) {
+  const lundi = new Date(maintenant); lundi.setDate(lundi.getDate() - ((lundi.getDay() + 6) % 7));
+  for (let x = new Date(lundi); x < maintenant; x.setDate(x.getDate() + 1)) {
+    const j = d.cache.jours.get(d.cleDate(x));
+    if (d.cleDate(x) === d.cleDate(maintenant)) break;
+    if (j && j.niveau !== 'pause' && !j.minimum && j.niveau !== 2) return 'utilise';
+  }
+  return 'disponible';
+}

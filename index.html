@@ -4,144 +4,106 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="screen-orientation" content="portrait">
+<meta name="theme-color" content="#FBFBF9">
 <title>Praxeo</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="styles.css">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="css/praxeo.css">
 </head>
 <body>
+<div class="app">
 
-  <!-- SPLASH SCREEN -->
-  <div id="splash" class="splash">
-    <svg class="orn orn-tl" viewBox="0 0 1280 1280" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <g transform="translate(0,1280) scale(0.1,-0.1)" fill="#5a5248" stroke="none">
-        <path d="M6085 12794 c-794 -47 -1358 -164 -1990 -411 -946 -372 -1784 -951 -2455 -1700 -1259 -1402 -1843 -3330 -1574 -5201 132 -920 463 -1792 977 -2574 733 -1116 1789 -1976 3022 -2463 558 -220 1145 -360 1775 -422 241 -24 833 -24 1076 0 999 98 1855 365 2682 836 506 287 859 559 1298 996 348 346 571 610 807 954 509 742 848 1575 1016 2501 63 349 75 527 75 1085 0 557 -16 788 -79 1130 -373 2019 -1617 3687 -3435 4604 -749 379 -1418 569 -2275 647 -159 14 -779 27 -920 18z"/>
-      </g>
-    </svg>
-    <svg class="orn orn-couronne" viewBox="0 0 1280 964" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
-      <g transform="translate(0,964) scale(0.1,-0.1)" fill="#8a8278" stroke="none">
-        <path d="M9660 9635 c0 -3 13 -72 30 -153 60 -303 111 -465 205 -657 154 -318 369 -504 671 -580 91 -24 254 -47 264 -38 3 3 5 82 5 176 0 150 -3 183 -24 257 -81 291 -278 529 -609 733 -98 61 -330 180 -455 233 -83 36 -87 37 -87 29z"/>
-        <path d="M3085 9610 c-22 -11 -106 -50 -186 -88 -567 -268 -854 -570 -924 -971 -16 -87 -20 -235 -9 -315 l7 -47 46 6 c190 25 299 54 416 112 293 147 493 437 614 893 27 100 91 398 91 422 0 11 -9 9 -55 -12z"/>
-        <path d="M11246 9183 c-130 -262 -205 -457 -248 -650 -32 -142 -32 -382 0 -503 46 -171 132 -318 271 -463 l84 -88 40 38 c108 103 218 288 262 438 44 152 48 373 10 560 -22 108 -92 315 -155 455 -52 116 -177 360 -185 360 -3 0 -38 -66 -79 -147z"/>
-        <path d="M1408 9198 c-208 -392 -299 -686 -299 -960 0 -137 10 -211 43 -316 42 -137 142 -302 241 -400 l54 -53 77 79 c96 97 155 180 212 297 57 117 83 223 91 366 13 256 -66 538 -261 937 -47 94 -87 172 -89 172 -2 0 -33 -55 -69 -122z"/>
-        <path d="M9880 8310 c0 -23 133 -407 173 -501 181 -421 416 -660 737 -752 151 -44 395 -63 406 -32 3 8 1 68 -5 133 -47 513 -366 835 -1071 1082 -178 63 -240 81 -240 70z"/>
-        <path d="M2745 8251 c-397 -134 -632 -261 -824 -446 -201 -193 -296 -407 -316 -704 l-7 -104 139 6 c517 23 847 318 1076 962 45 126 110 336 105 340 -2 1 -79 -23 -173 -54z"/>
-        <path d="M12015 7867 c-317 -395 -472 -680 -515 -949 -18 -110 -8 -312 20 -408 28 -98 88 -226 152 -322 57 -87 47 -86 143 -15 386 286 503 725 365 1361 -24 109 -99 378 -108 388 -4 4 -30 -21 -57 -55z"/>
-        <path d="M727 7913 c-9 -15 -87 -300 -107 -390 -111 -508 -57 -892 165 -1170 36 -45 89 -102 118 -126 67 -57 160 -127 169 -127 11 0 93 130 137 217 67 135 93 236 98 394 4 104 2 155 -11 220 -45 221 -138 416 -323 677 -98 137 -240 314 -246 305z"/>
-        <path d="M10594 6869 c26 -621 158 -989 435 -1211 123 -98 318 -191 448 -212 l41 -7 23 93 c33 135 34 367 1 488 -60 222 -203 437 -422 636 -118 107 -339 270 -494 364 l-39 24 7 -175z"/>
-        <path d="M2045 6922 c-200 -134 -282 -199 -418 -331 -283 -275 -407 -543 -394 -856 6 -147 40 -305 66 -305 72 0 298 93 412 171 246 165 406 470 463 877 19 133 39 426 34 499 l-3 53 -160 -108z"/>
-        <path d="M12478 6321 c-322 -194 -530 -365 -661 -543 -153 -208 -216 -409 -204 -647 5 -99 27 -233 47 -286 l9 -23 68 17 c392 102 654 377 783 825 37 127 75 347 89 516 17 195 20 230 17 230 -1 0 -68 -40 -148 -89z"/>
-        <path d="M174 6358 c3 -18 8 -76 11 -128 46 -705 272 -1143 688 -1335 62 -29 232 -85 256 -85 9 0 37 118 52 220 15 98 5 285 -19 375 -81 295 -285 538 -667 795 -97 65 -305 190 -317 190 -5 0 -7 -15 -4 -32z"/>
-        <path d="M10642 5794 c-103 -481 -111 -845 -25 -1104 84 -257 239 -435 507 -582 38 -21 70 -37 72 -36 1 2 20 39 42 83 84 168 118 331 109 508 -19 339 -205 678 -593 1076 l-102 105 -10 -50z"/>
-        <path d="M2027 5708 c-180 -193 -276 -312 -367 -458 -239 -381 -273 -741 -105 -1095 49 -104 45 -100 96 -75 88 45 209 130 282 199 163 155 262 355 297 597 16 112 13 377 -6 524 -16 123 -69 419 -77 427 -3 2 -56 -51 -120 -119z"/>
-        <path d="M12615 4915 c-500 -80 -801 -202 -1011 -410 -110 -108 -194 -250 -244 -412 -21 -67 -53 -243 -46 -250 10 -10 142 -23 236 -23 417 0 757 241 1059 751 58 98 191 351 191 363 0 9 -34 6 -185 -19z"/>
-        <path d="M0 4923 c0 -3 37 -79 83 -167 153 -296 262 -453 426 -617 161 -160 308 -251 492 -301 73 -20 107 -23 259 -23 96 0 187 3 203 8 26 7 27 10 21 50 -59 409 -248 667 -617 842 -182 86 -388 142 -698 190 -184 29 -169 27 -169 18z"/>
-        <path d="M10342 4415 c-103 -340 -138 -553 -129 -784 11 -283 95 -483 283 -672 84 -85 228 -194 243 -184 19 11 111 168 141 242 95 227 102 449 25 718 -34 117 -153 360 -245 500 -76 114 -251 354 -260 355 -3 0 -29 -79 -58 -175z"/>
-        <path d="M2292 4438 c-434 -578 -548 -1024 -368 -1440 36 -82 84 -168 122 -215 l22 -28 53 37 c229 158 370 350 436 593 26 93 28 114 28 295 0 205 -9 276 -60 485 -35 142 -117 405 -126 405 -4 0 -53 -60 -107 -132z"/>
-        <path d="M9808 3730 c-238 -440 -330 -719 -329 -1001 1 -289 110 -529 338 -742 l30 -27 63 64 c234 239 328 545 274 904 -31 210 -108 434 -247 717 l-83 169 -46 -84z"/>
-        <path d="M2863 3633 c-100 -206 -155 -342 -198 -495 -111 -383 -75 -714 106 -982 55 -80 167 -206 184 -206 22 0 171 175 226 264 169 275 186 586 53 978 -38 115 -236 536 -278 593 -10 14 -23 -7 -93 -152z"/>
-        <path d="M12216 3779 c-425 -35 -728 -141 -923 -323 -151 -141 -233 -279 -298 -499 l-23 -78 26 -10 c80 -30 183 -44 332 -44 131 1 168 4 240 24 330 92 615 339 928 808 45 67 82 124 82 127 0 8 -246 5 -364 -5z"/>
-        <path d="M220 3774 c0 -16 190 -291 273 -394 104 -129 277 -299 377 -369 100 -70 230 -135 337 -168 81 -24 103 -27 263 -27 151 -1 187 2 267 22 l91 23 -19 72 c-137 495 -480 749 -1111 821 -154 18 -478 32 -478 20z"/>
-        <path d="M9063 2910 c-255 -252 -399 -442 -483 -637 -103 -240 -115 -460 -38 -703 24 -76 87 -220 104 -239 2 -2 36 13 76 34 296 150 482 403 552 751 40 198 38 510 -4 802 -11 75 -20 143 -20 150 0 6 -4 12 -8 12 -4 0 -85 -76 -179 -170z"/>
-        <path d="M3542 2992 c-43 -284 -56 -603 -33 -784 25 -190 88 -373 175 -509 59 -91 187 -219 281 -280 72 -47 168 -99 183 -99 23 0 115 228 143 355 22 99 17 304 -10 405 -48 180 -128 336 -262 510 -73 95 -333 368 -420 441 l-46 38 -11 -77z"/>
-        <path d="M10986 2685 c-315 -51 -549 -199 -712 -450 -55 -85 -104 -177 -104 -195 0 -18 164 -90 265 -115 353 -90 697 11 1080 315 44 35 154 137 244 226 l165 161 -70 12 c-245 43 -338 53 -554 56 -165 3 -249 1 -314 -10z"/>
-        <path d="M1300 2679 c-91 -10 -413 -59 -418 -64 -6 -6 264 -270 348 -341 206 -174 441 -307 630 -359 172 -47 372 -44 539 7 110 33 231 89 231 106 0 25 -88 178 -151 261 -169 225 -404 352 -719 391 -99 12 -338 11 -460 -1z"/>
-        <path d="M8355 2158 c-16 -4 -102 -24 -190 -44 -671 -152 -1029 -420 -1145 -859 -22 -84 -48 -280 -38 -290 13 -13 276 -5 357 10 363 70 649 332 894 821 53 106 159 354 155 364 -2 3 -16 3 -33 -2z"/>
-        <path d="M4410 2147 c0 -14 85 -210 144 -332 115 -238 224 -404 355 -538 165 -171 331 -266 545 -314 74 -16 348 -24 362 -10 12 11 -12 200 -36 292 -12 44 -41 122 -66 174 -162 344 -488 547 -1107 690 -171 39 -197 45 -197 38z"/>
-        <path d="M9925 1829 c-229 -23 -431 -118 -597 -283 -70 -69 -158 -177 -158 -194 0 -15 140 -108 227 -152 131 -65 237 -92 393 -97 252 -9 482 54 775 215 98 53 435 272 435 282 0 9 -353 130 -481 164 -212 57 -430 81 -594 65z"/>
-        <path d="M2590 1814 c-14 -2 -56 -9 -95 -15 -148 -23 -417 -102 -669 -199 l-29 -11 64 -46 c129 -95 328 -216 464 -283 258 -127 429 -172 645 -172 157 1 274 25 405 86 76 35 238 137 251 157 9 16 -41 84 -133 180 -139 144 -285 232 -463 279 -68 18 -118 23 -250 25 -91 2 -176 2 -190 -1z"/>
-        <path d="M8559 1195 c-86 -16 -198 -55 -280 -96 -60 -30 -180 -109 -216 -142 l-22 -20 43 -56 c108 -140 273 -269 421 -330 231 -96 527 -105 880 -26 129 29 485 141 485 153 0 8 -254 190 -340 244 -195 124 -385 210 -551 252 -132 34 -309 42 -420 21z"/>
-        <path d="M3958 1190 c-264 -33 -570 -181 -932 -450 l-100 -74 30 -13 c60 -26 277 -94 391 -123 186 -47 286 -62 454 -67 291 -10 503 48 698 192 71 53 182 163 230 230 l32 44 -63 47 c-232 171 -491 246 -740 214z"/>
-        <path d="M6343 960 c-153 -36 -235 -204 -169 -345 90 -194 363 -191 449 5 59 133 -14 293 -154 334 -57 17 -76 18 -126 6z"/>
-        <path d="M7335 773 c-159 -20 -326 -82 -473 -175 l-53 -34 52 -80 c100 -151 275 -304 423 -369 303 -134 681 -135 1209 -2 l128 32 -123 106 c-242 208 -384 307 -573 400 -209 102 -413 144 -590 122z"/>
-        <path d="M5255 759 c-315 -43 -630 -225 -1063 -615 -11 -9 16 -19 135 -47 310 -75 436 -92 668 -91 250 0 405 34 575 125 140 75 271 197 369 343 l52 76 -63 41 c-208 134 -460 197 -673 168z"/>
-      </g>
-    </svg>
-    <div class="splash-content">
-      <span class="splash-logo">Praxeo</span>
-      <div class="splash-loader"><div class="splash-loader-bar"></div></div>
-      <span class="splash-sub">Construis<br>tes habitudes</span>
-    </div>
-  </div>
-
-  <!-- APP SHELL -->
-  <div id="app" class="app hidden">
-
-    <!-- HEADER -->
-    <header class="header">
-      <span class="logo">Praxeo</span>
-      <button class="menu-btn" id="menuBtn" title="Menu">
-        <span class="menu-dot"></span>
-        <span class="menu-dot"></span>
-        <span class="menu-dot"></span>
-      </button>
-    </header>
-
-    <!-- MÉANDRE + SOUS-TITRE -->
-    <div class="header-sub-wrap">
-      <svg class="meander-sep" viewBox="0 0 280 8" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-        <path d="M0,4 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v3 h4 v-3 h4 v6 h4 v-6 h4 v4" stroke="#5a5248" stroke-width="1" fill="none"/>
+  <!-- EN-TÊTE COMMUN : titre de l'onglet, frise, élément de droite -->
+  <header class="entete">
+    <div class="entete-gauche">
+      <h1 class="titre" id="titre">PRAXEO</h1>
+      <!-- Méandre de la v1, répété à taille fixe : le motif reste identique quelle que soit la longueur de la frise -->
+      <svg class="frise" aria-hidden="true">
+        <defs>
+          <pattern id="meandre" patternUnits="userSpaceOnUse" width="17.4" height="7" viewBox="0 0 16 8" preserveAspectRatio="none">
+            <path d="M0,4 h4 v-3 h4 v6 h4 v-6 h4 v3"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#meandre)"/>
       </svg>
-      <span class="page-subtitle" id="pageSubtitle"></span>
     </div>
-
-    <!-- PAGES -->
-    <main class="pages">
-      <div id="page-accueil" class="page hidden"></div>
-      <div id="page-praxis"  class="page hidden"></div>
-      <div id="page-stats"   class="page hidden"></div>
-    </main>
-
-    <!-- NAVBAR -->
-    <nav class="navbar">
-      <button class="nav-btn" data-page="accueil" title="Accueil">
-        <svg viewBox="0 0 717 620" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-          <g transform="translate(0,620) scale(0.1,-0.1)">
-            <path d="M3555 6183 c-17 -7 -820 -386 -1785 -842 l-1755 -829 -3 -141 -3 -141 3576 0 3576 0 -3 141 -3 141 -355 167 c-195 93 -958 453 -1695 801 -737 348 -1381 652 -1430 675 -85 39 -93 41 -120 28z"/>
-            <path d="M748 4103 l-48 -4 0 -225 0 -224 2885 0 2885 0 0 230 0 230 -2837 -2 c-1561 -1 -2859 -3 -2885 -5z"/>
-            <path d="M960 3518 c0 -15 -23 -937 -45 -1813 -8 -324 -19 -786 -25 -1025 -5 -239 -12 -488 -14 -552 l-3 -118 425 0 424 0 -6 157 c-4 87 -22 707 -41 1378 -50 1768 -56 1969 -62 1975 -2 3 -151 6 -329 8 -261 2 -324 0 -324 -10z"/>
-            <path d="M2486 3438 c-3 -51 -8 -203 -11 -338 -3 -135 -21 -868 -40 -1630 -19 -762 -35 -1402 -35 -1422 l0 -38 420 0 420 0 0 108 c0 59 -11 487 -25 952 -13 465 -33 1180 -45 1590 -11 410 -23 773 -26 808 l-6 62 -323 0 -323 0 -6 -92z"/>
-            <path d="M4006 3273 c-20 -782 -66 -2654 -72 -2935 l-7 -328 423 0 422 0 -6 197 c-4 109 -24 830 -46 1603 -22 773 -42 1476 -46 1563 l-6 157 -328 0 -327 0 -7 -257z"/>
-            <path d="M5536 3358 c-4 -95 -22 -807 -41 -1583 -19 -776 -37 -1490 -41 -1587 l-6 -178 421 0 421 0 0 133 c0 72 -11 524 -25 1002 -13 479 -34 1205 -45 1615 -12 410 -23 751 -25 758 -3 9 -78 12 -329 12 l-324 0 -6 -172z"/>
-          </g>
-        </svg>
+    <!-- emplacement de droite, toujours réservé : la frise a la même longueur sur tous les onglets -->
+    <div class="entete-droite">
+      <button class="couronne" id="couronne" type="button" aria-label="Série en cours, voir les statistiques">
+        <span class="couronne-img" aria-hidden="true"></span>
+        <span class="couronne-nb" id="serieNb">0</span>
       </button>
-
-      <button class="nav-btn" data-page="praxis" title="Praxis">
-        <svg class="nav-icon-portrait" viewBox="0 0 514 692" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-label="Praxis">
-          <g transform="translate(0,692) scale(0.1,-0.1)">
-            <path d="M2270 6895 c-468 -57 -917 -244 -1285 -535 -189 -150 -399 -379 -542 -592 -84 -126 -213 -382 -268 -532 -50 -136 -100 -337 -127 -507 -29 -189 -31 -513 -5 -694 110 -748 496 -1368 1107 -1780 675 -454 1538 -559 2299 -279 347 128 710 366 963 633 186 196 331 406 448 646 267 549 328 1155 175 1750 -46 179 -91 300 -185 490 -380 775 -1125 1299 -1989 1400 -151 18 -444 18 -591 0z m520 -846 c695 -81 1296 -633 1440 -1322 83 -398 32 -782 -151 -1137 -240 -464 -671 -787 -1190 -892 -97 -19 -145 -23 -319 -23 -233 0 -348 18 -539 82 -712 238 -1193 935 -1158 1678 4 72 11 159 17 195 127 777 769 1369 1548 1429 114 9 216 6 352 -10z"/>
-            <path d="M713 975 c-181 -51 -320 -201 -354 -380 -41 -219 91 -457 296 -534 96 -36 174 -43 262 -25 161 33 275 120 346 262 l42 85 0 121 c0 104 -3 129 -23 179 -51 126 -163 234 -289 279 -76 27 -210 33 -280 13z"/>
-            <path d="M2451 974 c-172 -46 -316 -195 -352 -365 -16 -73 -6 -201 21 -272 50 -132 170 -244 308 -288 189 -59 405 10 524 168 60 80 89 158 95 258 10 144 -30 254 -128 359 -122 130 -303 185 -468 140z"/>
-            <path d="M4193 976 c-160 -39 -291 -162 -345 -324 -26 -78 -24 -214 3 -294 57 -169 190 -285 372 -322 262 -54 521 135 560 409 21 147 -27 291 -136 400 -123 123 -288 171 -454 131z"/>
-          </g>
-        </svg>
+      <button class="btn-plus" id="btnPlus" type="button" aria-label="Ajouter une praxis" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       </button>
+    </div>
+  </header>
 
-      <button class="nav-btn" data-page="stats" title="Stats">
-        <svg class="nav-icon-portrait nav-icon-stats" viewBox="0 0 514 692" xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-label="Stats">
-          <g transform="translate(0,692) scale(0.1,-0.1)">
-            <path d="M773 5579 c-270 -45 -453 -301 -404 -564 26 -136 130 -279 249 -339 211 -107 464 -52 604 131 75 100 93 156 93 299 l0 121 -42 85 c-71 142 -186 229 -346 262 -83 17 -80 17 -154 5z"/>
-            <path d="M2513 5579 c-129 -22 -240 -88 -315 -186 -60 -80 -89 -158 -95 -258 -10 -144 30 -254 128 -359 193 -207 505 -207 698 0 98 105 138 215 128 359 -6 100 -35 178 -95 258 -101 133 -292 213 -449 186z"/>
-            <path d="M4226 5574 c-234 -51 -386 -237 -386 -472 0 -188 99 -350 261 -429 196 -95 403 -61 556 92 148 148 183 361 90 548 -98 198 -314 306 -521 261z"/>
-            <path d="M2520 3774 c-81 -8 -253 -34 -355 -55 -584 -116 -1195 -434 -1745 -905 -171 -147 -400 -374 -400 -396 0 -29 90 -127 267 -291 260 -239 462 -398 706 -553 326 -208 770 -394 1083 -454 340 -65 563 -76 816 -39 527 75 938 236 1378 537 241 165 573 461 772 690 l90 102 -74 88 c-102 122 -384 408 -503 511 -239 207 -473 364 -730 492 -275 136 -527 213 -839 255 -112 15 -383 26 -466 18z m201 -244 c428 -43 805 -348 950 -768 55 -157 65 -472 20 -629 -95 -331 -310 -584 -624 -734 -161 -76 -230 -91 -443 -97 -213 -5 -291 7 -450 69 -137 53 -267 141 -390 263 -151 150 -239 298 -289 488 -154 583 166 1168 745 1362 162 54 282 66 481 46z"/>
-            <path d="M2442 3020 c-85 -18 -190 -78 -271 -155 -86 -83 -131 -150 -169 -257 -23 -64 -26 -89 -26 -198 0 -95 4 -138 18 -180 77 -230 251 -392 471 -436 295 -60 572 74 699 339 52 108 66 168 66 280 0 160 -58 303 -173 424 -79 83 -135 122 -232 159 -61 23 -87 27 -205 30 -74 2 -154 -1 -178 -6z"/>
-          </g>
-        </svg>
-      </button>
+  <main class="pages">
 
-      <button class="nav-btn nav-undo" id="undoBtn" title="Annuler">
-        <svg viewBox="0 0 85 85" xmlns="http://www.w3.org/2000/svg">
-          <g transform="translate(0,85) scale(0.1,-0.1)" fill="currentColor" stroke="var(--bg)" stroke-width="80" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M584 783 c-20 -37 -39 -70 -40 -71 -1 -2 -29 6 -61 18 -88 33 -195 31 -270 -5 -76 -38 -138 -101 -176 -183 -29 -61 -32 -75 -32 -167 0 -90 3 -106 28 -158 59 -119 183 -208 303 -215 79 -5 174 20 174 46 0 30 -54 127 -68 124 -106 -22 -171 -7 -228 52 -131 137 -44 366 140 366 47 0 85 -9 104 -25 2 -2 -13 -35 -32 -74 -20 -39 -36 -73 -36 -76 0 -9 434 -5 448 4 16 9 7 28 -116 256 -108 200 -94 189 -138 108z"/>
-          </g>
-        </svg>
-      </button>
-    </nav>
+    <!-- ACCUEIL -->
+    <section class="page" id="page-accueil">
+      <div class="zone" id="zone">
+        <div class="zone-cale" aria-hidden="true"></div>
+        <div class="zone-cale-btn" aria-hidden="true"></div>
+        <div class="zone-cale-g" aria-hidden="true"></div>
+        <div class="zone-cale-minuteur" aria-hidden="true"></div>
+        <div class="zone-texte" id="zoneTexte" aria-live="polite"></div>
+        <button class="zone-btn" id="zoneBtn" type="button" aria-label="Parler à Kairos"></button>
+        <button class="zone-minuteur" id="zoneMinuteur" type="button" hidden></button>
+      </div>
+      <!-- réponses rapides du coach, en bulles (§5.5) ; visibles seulement quand il pose une question -->
+      <div class="reponses" id="reponses" hidden></div>
+      <ol class="programme" id="programme"></ol>
+      <div class="lignes" id="lignes"></div>
+    </section>
 
+    <!-- PRAXIS -->
+    <section class="page" id="page-praxis" hidden>
+      <label class="recherche">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0M21 21l-6 -6"/></svg>
+        <input id="praxisRecherche" type="search" placeholder="Rechercher" autocomplete="off" aria-label="Rechercher une praxis">
+      </label>
+      <div class="lignes-praxis" id="praxisListe"></div>
+    </section>
+
+    <!-- STATS -->
+    <section class="page" id="page-stats" hidden>
+      <div id="statsContenu"></div>
+    </section>
+
+    <!-- RÉGLAGES -->
+    <section class="page" id="page-reglages" hidden>
+      <div id="reglagesContenu"></div>
+    </section>
+
+  </main>
+
+  <!-- ANNULER : mention temporaire après chaque action (§14, validé le 19/11/2026) -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span class="toast-texte"></span>
+    <button class="toast-annuler" type="button">Annuler</button>
   </div>
 
-  <script src="app.js"></script>
+  <!-- BARRE DE NAVIGATION -->
+  <nav class="barre" aria-label="Onglets">
+    <button class="onglet" data-page="accueil" type="button" aria-label="Accueil">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20l1.3 -3.9c-2.324 -3.437 -1.426 -7.872 2.1 -10.374c3.526 -2.501 8.59 -2.296 11.845 .48c3.255 2.777 3.695 7.266 1.029 10.501c-2.666 3.235 -7.615 4.215 -11.574 2.293l-4.7 1"/></svg>
+    </button>
+    <button class="onglet" data-page="praxis" type="button" aria-label="Praxis">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M5 6v.01M5 12v.01M5 18v.01"/></svg>
+    </button>
+    <button class="onglet" data-page="stats" type="button" aria-label="Stats">
+      <!-- calendrier de cases (validé le 17/11/2026) -->
+      <svg class="trait-fin" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="17" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="17" y="9.75" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="17" width="4.5" height="4.5" rx="1"/><rect x="9.75" y="17" width="4.5" height="4.5" rx="1"/></svg>
+    </button>
+    <button class="onglet" data-page="reglages" type="button" aria-label="Réglages">
+      <!-- compas avec traverse, qui trace un arc (à l'essai, 17/11/2026) -->
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="4.6" r="1.8"/><path d="M12 2.8v-1.3M11.1 6.2l-4.1 12.3M12.9 6.2l4.1 12.3M8.7 13.2h6.6M4.5 21c4.8 1.5 10.2 1.5 15 0"/></svg>
+    </button>
+  </nav>
+
+</div>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
