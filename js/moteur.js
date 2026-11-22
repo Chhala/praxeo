@@ -305,6 +305,8 @@ export function composer(maintenant = new Date()) {
   const fixesTries = fixes.slice().sort((a, b) => a.heure - b.heure || (a.rattrapage ? -1 : 0));
   for (let i = 1; i < fixesTries.length; i++) {
     const fin = fixesTries[i - 1].heure + fixesTries[i - 1].duree;
+    // une tâche commencée garde son heure : c'est le repas ou le bloc d'avant qui a été écourté (22/11/2026)
+    if (fixesTries[i].enCours) continue;
     if (fixesTries[i].heure < fin && fixesTries[i].heure < finJournee + 30) fixesTries[i].heure = fin;
   }
   let curseur = cinq(Math.max(now, debutApresMidi));   // on ne place rien dans le passé, et à l'heure ronde
@@ -314,8 +316,8 @@ export function composer(maintenant = new Date()) {
     if (f.prefere === 'soir' && curseur < finDiner) { curseur = finDiner; effort = 0; }
     for (let essais = 0; essais < 12; essais++) {
       const fx = prochainFixe(curseur);
-      if (fx && curseur >= fx.heure) { curseur = fx.heure + fx.duree; effort = 0; continue; }
-      if (fx && curseur + f.duree > fx.heure) { curseur = fx.heure + fx.duree; effort = 0; continue; }
+      if (fx && curseur >= fx.heure) { curseur = cinq(fx.heure + fx.duree); effort = 0; continue; }   // reprise à l'heure ronde
+      if (fx && curseur + f.duree > fx.heure) { curseur = cinq(fx.heure + fx.duree); effort = 0; continue; }
       break;
     }
     if (!f.force && famille(curseur) && f.duree > 15) continue;

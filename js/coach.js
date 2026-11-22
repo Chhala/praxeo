@@ -103,6 +103,7 @@ Un moteur local, sans IA, compose ma journée (le programme que tu reçois dans 
 - Si je dis « il faut que je… » ou « je dois… » pour aujourd'hui, c'est une obligation : ajoute-la tout de suite (ajouter_tache), sans demander, elle passe en premier. Si je dis « j'ai envie de… », c'est respecté, mais tu peux ajuster la durée pour garder de la place. Tu commentes une seule fois, brièvement, si ça déborde ou si quelque chose d'important passe à la trappe.
 - Ne pas faire n'est pas échouer : distingue « empêché » (imprévu, panne, malade : neutre) de « reporté par choix » (pas envie : la tâche reste due). Déduis-le de ce que je dis ; ne demande que si c'est vraiment ambigu. Si une même tâche est souvent reportée, propose de l'ajuster (plus courte, autre moment) au lieu d'insister.
 - Une envie nouvelle (« j'ai envie de travailler sur Masques ») : demande la taille avec des réponses rapides (30 min, 1 h, 2 h…). Dès que j'ai choisi la durée, crée la séance (ajouter_tache avec le praxisId) et dis en une phrase jusqu'à quelle heure elle va et ce qui se décale ; ne redemande pas mon accord.
+- Ce que je vais faire tout de suite (« je vais faire 30 minutes d'impression 3D », « je commence le sol ») : c'est pour maintenant. Une tâche nouvelle : ajouter_tache avec l'heure actuelle arrondie aux 5 minutes les plus proches (dit à 14h03 : 14h05 ; à 14h02 : 14h00), et c'est cette heure que tu annonces ; une tâche déjà au programme : commencer, avec la même heure arrondie. Jamais en fin de journée.
 - Une absence (« je pars au gymnase à 16h05, je suis de nouveau dispo à 18h ») : une seule tâche à heure fixe qui couvre tout, de l'heure de départ à l'heure où je suis de nouveau disponible, trajet et douche compris (ajouter_tache avec un libellé court, « Parkour », heure « 16h05 », durée = l'écart en minutes, ici 115). Rien ne doit tomber pendant ce temps : le moteur replace le reste avant ou après.
 - Pour une longue séance (45 min ou plus) ou avant une heure butoir (départ, rendez-vous, coucher), tu peux proposer un minuteur : il fait sonner l'Horloge de l'iPhone. L'application ne peut pas sonner seule ; pas de notifications.
 - Rendez-vous de la semaine : le dimanche soir, à l'ouverture, si les projets de la semaine ne sont pas choisis, ton message est uniquement « Quels sont tes 2 ou 3 projets cette semaine ? » (le contexte le signale). Sauté, tu le reproposes le lundi à l'ouverture, une fois, sans insister. Jamais cette question à la fin d'une réponse sur autre chose.
@@ -420,12 +421,19 @@ export async function appliquer(json, dit = '') {
               defaire.push(() => d.restaurerPonctuelle(vieille));
             }
           }
+          // « je vais faire… », « je commence… », « là je… » : c'est pour maintenant (22/11/2026 : la tâche partait en fin de journée)
+          const mn = (h) => { const [hh, mm] = String(h).split('h').map(Number); return hh * 60 + (mm || 0); };
+          const ici = new Date().getHours() * 60 + new Date().getMinutes();
+          const pourMaintenant = (!a.heure || (/^\d{1,2}h\d{0,2}$/.test(a.heure) && Math.abs(mn(a.heure) - ici) <= 15)) && (!a.date || a.date <= auj) && /\b(je vais (faire|m'y mettre|me mettre)|je commence|je m'y mets|je me mets|là,? je|maintenant)\b/i.test(String(dit || ''));
+          // l'heure de début aux 5 minutes les plus proches : dit à 14h03, la tâche commence à 14h05
+          if (pourMaintenant) { const x = new Date(); const t5 = Math.round((x.getHours() * 60 + x.getMinutes()) / 5) * 5; a.heure = `${Math.floor(t5 / 60)}h${String(t5 % 60).padStart(2, '0')}`; }
           const q = await d.ajouterPonctuelle({
             libelle: a.libelle || p?.libelle || 'Tâche', duree: Math.max(1, a.duree || p?.duree || 20),
             date: /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') && a.date > auj ? a.date : auj,   // un autre jour (« fais-le dimanche », 21/11/2026)
             ...(a.heure && /^\d{1,2}h\d{0,2}$/.test(a.heure) ? { heure: a.heure.replace(/h$/, 'h00') } : {}),
             ...(p ? { praxisId: p.id, couleur: p.couleur } : {}), source: 'coach',
           });
+          if (pourMaintenant) { const ev = await d.noter('commence', q.id, { heure: a.heure }); defaire.push(() => d.supprimerEvenement(ev.id)); }
           defaire.push(() => d.supprimerPonctuelle(q.id));
           resume.push(q.date === auj ? `${q.libelle} ajoutée` : `${q.libelle} prévue le ${dateCourte(q.date)}`);
           break;

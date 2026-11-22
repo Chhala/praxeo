@@ -34,6 +34,16 @@ function formatCout(usd) {
 // Bruit d'écriture (§6.1), discret et désactivable.
 // iOS n'autorise le son qu'après un premier geste : le contexte audio est ouvert au premier toucher.
 let audio = null;
+// Après la dictée, iOS laisse l'audio en mode « micro + haut-parleur », où le volume est bien plus fort.
+// On repasse en sortie ordinaire (Audio Session de Safari, iOS 16.4 et plus) ; à défaut, le crayon est joué plus bas.
+let apresMicro = false;
+function retablirSortie() {
+  try {
+    if (navigator.audioSession) { navigator.audioSession.type = 'ambient'; return; }
+  } catch { /* non pris en charge */ }
+  apresMicro = true;
+}
+
 // Bruit d'écriture : un vrai crayon sur le papier (enregistrement libre de droits, Pixabay, floraphonic), 22/11/2026.
 // Il tourne en boucle à partir d'un point pris au hasard, tant que les lettres arrivent, puis s'éteint en douceur.
 let plumeSon = null, plumeChargement = null, plumeEnCours = null, plumeArret = null;
@@ -58,7 +68,7 @@ function plume() {
     tasse.threshold.value = -35; tasse.knee.value = 6; tasse.ratio.value = 12; tasse.attack.value = 0; tasse.release.value = 0.12;
     const g = audio.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(GAIN_PLUME, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(apresMicro ? GAIN_PLUME * 0.3 : GAIN_PLUME, t + 0.05);
     // limiteur en sortie : aucune pointe ne sature (mesuré : moyenne -13 dB au lieu de -25, pointes à 0 dB)
     const limite = audio.createDynamicsCompressor();
     limite.threshold.value = -2; limite.knee.value = 0; limite.ratio.value = 20; limite.attack.value = 0; limite.release.value = 0.05;
@@ -596,6 +606,7 @@ const coach = {
     };
     r.onend = () => {
       this.reco = null;
+      retablirSortie();   // l'iPhone sortait le son bien plus fort après le micro (22/11/2026)
       this.btn.classList.remove('ecoute');
       this.majBouton();
       // délai de silence choisi dans Réglages (0,5 / 1 / 1,5 s) : le temps de corriger avant l'envoi
