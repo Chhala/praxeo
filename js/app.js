@@ -47,7 +47,7 @@ function retablirSortie() {
 // Bruit d'écriture : un vrai crayon sur le papier (enregistrement libre de droits, Pixabay, floraphonic), 22/11/2026.
 // Il tourne en boucle à partir d'un point pris au hasard, tant que les lettres arrivent, puis s'éteint en douceur.
 let plumeSon = null, plumeChargement = null, plumeEnCours = null, plumeArret = null;
-const GAIN_PLUME = 0.45;   // après tassement des pointes (2,75, 1,5 puis 0,9 jugés trop forts à 50 % de volume, 22/11/2026)
+const GAIN_PLUME = 1;   // son brut, comme au tout premier réglage (versions traitées trop fortes, 22/11/2026)
 function chargerPlume() {
   if (plumeSon || plumeChargement || !audio) return;
   plumeChargement = fetch('./assets/sons/plume.mp3').then((r) => r.arrayBuffer())
@@ -60,19 +60,12 @@ function plume() {
   if (!plumeEnCours) {
     const src = audio.createBufferSource();
     src.buffer = plumeSon; src.loop = true;
-    // l'enregistrement est discret (moyenne -25 dB, pointes -4 dB) : on coupe les graves que l'iPhone ne rend pas,
-    // on avive le grattement, on tasse les pointes puis on remonte le tout (22/11/2026 : inaudible sous 75 % de volume)
-    const graves = audio.createBiquadFilter(); graves.type = 'highpass'; graves.frequency.value = 300;
-    const eclat = audio.createBiquadFilter(); eclat.type = 'highshelf'; eclat.frequency.value = 2500; eclat.gain.value = 5;
-    const tasse = audio.createDynamicsCompressor();
-    tasse.threshold.value = -35; tasse.knee.value = 6; tasse.ratio.value = 12; tasse.attack.value = 0; tasse.release.value = 0.12;
+    // le fichier tel quel, sans filtre ni compression (22/11/2026 : retour au tout premier réglage,
+    // les versions traitées étaient trop fortes à 50-75 % de volume)
     const g = audio.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(apresMicro ? GAIN_PLUME * 0.3 : GAIN_PLUME, t + 0.05);
-    // limiteur en sortie : aucune pointe ne sature (mesuré : moyenne -13 dB au lieu de -25, pointes à 0 dB)
-    const limite = audio.createDynamicsCompressor();
-    limite.threshold.value = -2; limite.knee.value = 0; limite.ratio.value = 20; limite.attack.value = 0; limite.release.value = 0.05;
-    src.connect(graves).connect(eclat).connect(tasse).connect(g).connect(limite).connect(audio.destination);
+    src.connect(g).connect(audio.destination);
     src.start(t, Math.random() * plumeSon.duration);
     plumeEnCours = { src, g };
   }
