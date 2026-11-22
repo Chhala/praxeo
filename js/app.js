@@ -31,38 +31,54 @@ function formatCout(usd) {
   return `${t.replace('.', ',')} centime${c >= 2 ? 's' : ''}`;
 }
 
-// Petit bruit de frappe (§6.1), discret et désactivable ; synthétisé, sans fichier son.
+// Bruit d'écriture (§6.1), discret et désactivable.
 // iOS n'autorise le son qu'après un premier geste : le contexte audio est ouvert au premier toucher.
 let audio = null;
+// Bruit d'écriture : un vrai crayon sur le papier (enregistrement libre de droits, Pixabay, floraphonic), 22/11/2026.
+// Il tourne en boucle à partir d'un point pris au hasard, tant que les lettres arrivent, puis s'éteint en douceur.
+let plumeSon = null, plumeChargement = null, plumeEnCours = null, plumeArret = null;
+function chargerPlume() {
+  if (plumeSon || plumeChargement || !audio) return;
+  plumeChargement = fetch('./assets/sons/plume.mp3').then((r) => r.arrayBuffer())
+    .then((b) => new Promise((ok, ko) => audio.decodeAudioData(b, ok, ko)))
+    .then((buf) => { plumeSon = buf; }).catch(() => { plumeChargement = null; });
+}
+function plume() {
+  if (!plumeSon) { chargerPlume(); return; }
+  const t = audio.currentTime;
+  if (!plumeEnCours) {
+    const src = audio.createBufferSource();
+    src.buffer = plumeSon; src.loop = true;
+    const g = audio.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(1, t + 0.05);
+    src.connect(g).connect(audio.destination);
+    src.start(t, Math.random() * plumeSon.duration);
+    plumeEnCours = { src, g };
+  }
+  clearTimeout(plumeArret);
+  plumeArret = setTimeout(() => {   // plus de lettres depuis un instant : la main se relève
+    if (!plumeEnCours) return;
+    const { src, g } = plumeEnCours; plumeEnCours = null;
+    const fin = audio.currentTime;
+    g.gain.cancelScheduledValues(fin); g.gain.setValueAtTime(g.gain.value, fin);
+    g.gain.exponentialRampToValueAtTime(0.0001, fin + 0.25);
+    src.stop(fin + 0.3);
+  }, 160);
+}
+
 function cliquetis() {
   if (!audio || audio.state !== 'running' || !donnees.reglage('bruitFrappe')) return;
-  try {
-    const o = audio.createOscillator();
-    const g = audio.createGain();
-    o.type = 'square';
-    o.frequency.value = 1800 + Math.random() * 600;
-    // volume choisi dans Réglages (22/11/2026) : 0,012 inaudible sur l'iPhone, 0,05 trop fort
-    const vol = { Doux: 0.018, Moyen: 0.028, Fort: 0.045 }[donnees.reglage('volumeFrappe')] || 0.028;
-    g.gain.setValueAtTime(vol, audio.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.025);
-    o.connect(g).connect(audio.destination);
-    o.start();
-    o.stop(audio.currentTime + 0.03);
-  } catch { /* son indisponible */ }
+  try { plume(); } catch { /* son indisponible */ }
 }
-// Essai depuis Réglages (22/11/2026) : une rafale de cliquetis au volume choisi, et l'état du son pour le diagnostic
-window.praxeoTesterSon = () => {
-  deverrouillerSon();
-  let n = 0;
-  const id = setInterval(() => { cliquetis(); if (++n >= 14) clearInterval(id); }, 84);
-  return audio ? audio.state : 'absent';
-};
+
 // iOS ne compte comme geste autorisant le son qu'un toucher terminé (touchend, click), pas pointerdown (21/11/2026)
 function deverrouillerSon() {
   try {
     if (!donnees.reglage('bruitFrappe')) return;
     if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
     if (audio.state !== 'running') audio.resume();   // « suspended » ou « interrupted » (retour d'arrière-plan)
+    chargerPlume();
     const b = audio.createBuffer(1, 1, 22050);         // un son muet joué dans le geste : déverrouille la sortie audio
     const s = audio.createBufferSource();
     s.buffer = b; s.connect(audio.destination); s.start(0);
