@@ -41,13 +41,22 @@ function cliquetis() {
     const g = audio.createGain();
     o.type = 'square';
     o.frequency.value = 1800 + Math.random() * 600;
-    g.gain.setValueAtTime(0.012, audio.currentTime);   // volume d'origine (0,05 jugé trop fort, 21/11/2026)
+    // volume choisi dans Réglages (22/11/2026) : 0,012 inaudible sur l'iPhone, 0,05 trop fort
+    const vol = { Doux: 0.018, Moyen: 0.028, Fort: 0.045 }[donnees.reglage('volumeFrappe')] || 0.028;
+    g.gain.setValueAtTime(vol, audio.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.025);
     o.connect(g).connect(audio.destination);
     o.start();
     o.stop(audio.currentTime + 0.03);
   } catch { /* son indisponible */ }
 }
+// Essai depuis Réglages (22/11/2026) : une rafale de cliquetis au volume choisi, et l'état du son pour le diagnostic
+window.praxeoTesterSon = () => {
+  deverrouillerSon();
+  let n = 0;
+  const id = setInterval(() => { cliquetis(); if (++n >= 14) clearInterval(id); }, 84);
+  return audio ? audio.state : 'absent';
+};
 // iOS ne compte comme geste autorisant le son qu'un toucher terminé (touchend, click), pas pointerdown (21/11/2026)
 function deverrouillerSon() {
   try {
@@ -654,7 +663,7 @@ async function init() {
   for (let i = 1; i <= 14; i++) {
     const x = new Date(); x.setDate(x.getDate() - i); x.setHours(23, 59, 0, 0);
     const j = donnees.cache.jours.get(donnees.cleDate(x));
-    if (j && j.source === 'v2' && j.minimum && j.niveau === 1) await moteur.majNiveauDuJour(x);
+    if (j && j.source === 'v2' && j.minimum && (j.niveau === 1 || j.plus === undefined)) await moteur.majNiveauDuJour(x);
   }
   etat.messageDuJour = consignes.messageDuJour();
   etat.journee = moteur.composer().items;

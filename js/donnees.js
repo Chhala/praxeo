@@ -81,7 +81,7 @@ export async function ecrireMeta(cle, valeur) {
 }
 
 // ── Réglages ───────────────────────────────────
-const REGLAGES_DEFAUT = { maximes: true, bruitFrappe: true, envoiAuto: true, delai: '1 s', taille: 'Normal', modele: 'Haiku', comparaison: false };
+const REGLAGES_DEFAUT = { maximes: true, bruitFrappe: true, volumeFrappe: 'Moyen', envoiAuto: true, delai: '1 s', taille: 'Normal', modele: 'Haiku', comparaison: false };
 export const reglage = (cle) => (cle in cache.reglages ? cache.reglages[cle] : REGLAGES_DEFAUT[cle]);
 export async function changerReglage(cle, valeur) {
   cache.reglages[cle] = valeur;

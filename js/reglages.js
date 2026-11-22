@@ -17,6 +17,7 @@ const ouvertes = new Set();
 const themesOuverts = new Set();
 let carnetOuvert = false;
 let semaineVue = 0;
+let etatSon = '';   // résultat du dernier essai du son (Réglages, Kairos)
 // Version installée (nom du cache du service worker) : pour savoir si une mise à jour est bien arrivée sur l'iPhone
 let versionAppli = '';
 // la version publiée (lue dans sw.js) ; hors ligne, celle du cache
@@ -211,6 +212,7 @@ function sectionCoach() {
     ${carnet}
     ${rang('Minuteur', `<span class="reg-boutons"><button type="button" class="reg-bouton" data-action="installerMinuteur">Installer</button><button type="button" class="reg-bouton" data-action="testerMinuteur">Tester</button></span>`, 'raccourci iOS « Praxeo Minuteur »')}
     ${rang('Bruit de frappe', interrupteur('bruitFrappe', donnees.reglage('bruitFrappe')))}
+    ${donnees.reglage('bruitFrappe') ? rang('Volume', `<span class="reg-boutons">${segment('volumeFrappe', ['Doux', 'Moyen', 'Fort'], donnees.reglage('volumeFrappe'))}<button type="button" class="reg-bouton" data-action="testerSon">Tester</button></span>`, etatSon) : ''}
     ${rang('Dictée : envoi automatique', interrupteur('envoiAuto', donnees.reglage('envoiAuto')), 'après un silence')}
     ${donnees.reglage('envoiAuto') ? rang('Délai de silence', segment('delai', ['0,5 s', '1 s', '1,5 s'], ['0,5 s', '1 s', '1,5 s'].includes(donnees.reglage('delai')) ? donnees.reglage('delai') : '1 s'), 'avant l\'envoi, le temps de corriger') : ''}`;
 }
@@ -521,6 +523,11 @@ export function initReglages(options = {}) {
       case 'carnet': carnetOuvert = !carnetOuvert; rendre(); break;
       case 'installerMinuteur': guideMinuteur(); break;
       case 'testerMinuteur': lancerMinuteur(1); break;   // dans le geste : exigé par iOS
+      case 'testerSon': {   // dans le geste : exigé par iOS ; l'état s'affiche sous la ligne, pour le diagnostic
+        const etat = window.praxeoTesterSon ? window.praxeoTesterSon() : 'absent';
+        setTimeout(() => { etatSon = { running: 'son actif', suspended: 'son en attente (touche encore)', interrupted: 'son coupé par l\'iPhone', absent: 'son indisponible' }[etat] || `son : ${etat}`; rendre(); }, 300);
+        break;
+      }
       case 'pause': demanderPause(); break;
       case 'reprendre': await donnees.ecrireMeta('pauseJusquau', ''); rendre(); break;
       case 'supprimerCle': confirmerSuppressionCle(); break;

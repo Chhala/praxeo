@@ -25,7 +25,8 @@ export const REGLES = {
   diner: 60,
   dinerFamille: 75,
   heureDiner: '19h30',   // je prépare à manger vers 19h30 (21/11/2026)
-  heureDinerFamille: '19h30',   // 19h30 aussi en famille (21/11/2026) ; le repas dure alors un peu plus
+  heureDinerFamille: '19h30',
+  enPlusMinimum: 30,      // mode minimum : minutes d'autres praxis pour que la journée fasse avancer la série   // 19h30 aussi en famille (21/11/2026) ; le repas dure alors un peu plus
 };
 
 // ── Mode minimum (§5.10 point 6) : 7 jours au plus, série gelée ──
@@ -371,7 +372,13 @@ export async function majNiveauDuJour(maintenant = new Date()) {
   // En mode minimum, la petite version EST l'essentiel du jour (22/11/2026 : la journée restait « en partie » tout validé)
   const fait = (x) => faits.has(x.id) || ((modeMinimum(date) || (famille && barreBasse)) && touches.has(x.id));
   const niveau = essentiel.length && essentiel.every(fait) ? 2 : touches.size ? 1 : 0;
-  const jour = { date, niveau, minimum: modeMinimum(date), source: 'v2' };
+  // En mode minimum, une journée où j'en fais nettement plus que le minimum fait avancer la série (22/11/2026) :
+  // l'essentiel fait, plus au moins 30 minutes d'autres praxis (pas quelques bricoles de 5 minutes)
+  const idsEssentiel = new Set(essentiel.map((x) => x.id));
+  const enPlus = evs.filter((e) => (e.type === 'fait' || e.type === 'minimum') && !idsEssentiel.has(e.praxisId))
+    .reduce((s, e) => s + (e.dureeReelle || e.duree || d.praxisParId(e.praxisId)?.duree || 0), 0);
+  const minimum = modeMinimum(date);
+  const jour = { date, niveau, minimum, ...(minimum ? { enPlus, plus: niveau === 2 && enPlus >= REGLES.enPlusMinimum } : {}), source: 'v2' };
   d.cache.jours.set(date, jour);
   await (await import('./db.js')).ecrire('jours', jour);
   return niveau;
@@ -391,6 +398,7 @@ export function serie() {
     const semaine = d.cleDate(lundi);
     curseur.setDate(curseur.getDate() - 1);
     if (i === 0 && (!jour || jour.niveau !== 2)) continue;   // aujourd'hui ne compte qu'une fois réussi
+    if (jour && jour.minimum && jour.plus) { n++; veilleRatee = false; continue; }   // mode minimum, mais nettement plus : la série avance
     if (jour && (jour.niveau === 'pause' || jour.minimum)) { veilleRatee = false; continue; }
     if (jour && jour.niveau === 2) { n++; veilleRatee = false; continue; }
     if (!jour && n === 0 && i < 2) continue;                  // hier pas encore enregistré
