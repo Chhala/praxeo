@@ -359,6 +359,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .reg-lib { font-size: 15px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .reg-note { font-size: 12px; color: var(--texte-2); }
 .reg-ctrl { flex-shrink: 0; display: flex; align-items: center; }
+.reg-volume input { flex: 1; max-width: 60%; accent-color: var(--egee); }
 .reg-valeur { font-size: 17px; }
 .reg-bouton {
   font-family: var(--marcellus); font-size: 14px; color: var(--egee);

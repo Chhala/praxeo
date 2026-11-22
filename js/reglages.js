@@ -217,6 +217,7 @@ function sectionAffichage() {
   return `
     ${rang('Taille du texte', segment('taille', ['Petit', 'Normal', 'Grand'], donnees.reglage('taille')))}
     ${rang('Bruit d\'écriture', interrupteur('bruitFrappe', donnees.reglage('bruitFrappe')), 'un crayon sur le papier')}
+    ${donnees.reglage('bruitFrappe') ? `<div class="reg-rang reg-volume"><span class="reg-lib">Volume du crayon</span><input type="range" min="0" max="100" step="5" value="${Number(donnees.reglage('volumeCrayon')) || 0}" data-volume aria-label="Volume du crayon"></div>` : ''}
     ${rang('Dictée : envoi automatique', interrupteur('envoiAuto', donnees.reglage('envoiAuto')), 'après un silence')}
     ${donnees.reglage('envoiAuto') ? rang('Délai de silence', segment('delai', ['0,5 s', '1 s', '1,5 s'], ['0,5 s', '1 s', '1,5 s'].includes(donnees.reglage('delai')) ? donnees.reglage('delai') : '1 s'), 'avant l\'envoi, le temps de corriger') : ''}`;
 }
@@ -453,6 +454,9 @@ export function initReglages(options = {}) {
   const racine = $('#reglagesContenu');
   racine.addEventListener('change', (e) => {
     if (e.target.id === 'fichierImport' && e.target.files[0]) importerFichier(e.target.files[0]);
+    if (e.target.matches('[data-volume]')) {   // curseur relâché : on garde le niveau et on fait entendre le crayon
+      donnees.changerReglage('volumeCrayon', Number(e.target.value)).then(() => window.dispatchEvent(new Event('praxeo:essaiCrayon')));
+    }
   });
   // Ma semaine : glisser vers la gauche montre la semaine prochaine, vers la droite revient à celle-ci
   let depart = null;

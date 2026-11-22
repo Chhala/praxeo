@@ -47,7 +47,12 @@ function retablirSortie() {
 // Bruit d'écriture : un vrai crayon sur le papier (enregistrement libre de droits, Pixabay, floraphonic), 22/11/2026.
 // Il tourne en boucle à partir d'un point pris au hasard, tant que les lettres arrivent, puis s'éteint en douceur.
 let plumeSon = null, plumeChargement = null, plumeEnCours = null, plumeArret = null;
-const GAIN_PLUME = 0.4;   // son brut ; au gain 1 (tout premier réglage) encore trop fort à 50 % de volume, 22/11/2026
+// Volume réglable dans Réglages > Affichage et son (22/11/2026) : 50 donne un gain de 0,2 (la moitié de 0,4, jugé trop fort) ;
+// chaque cran de 5 vaut environ 2,4 dB, de 0,05 (curseur à 0) à 0,8 (curseur à 100)
+const gainPlume = () => {
+  const v = Math.min(100, Math.max(0, Number(donnees.reglage('volumeCrayon')) || 0));
+  return 0.2 * Math.pow(4, (v - 50) / 50);
+};
 function chargerPlume() {
   if (plumeSon || plumeChargement || !audio) return;
   plumeChargement = fetch('./assets/sons/plume.mp3').then((r) => r.arrayBuffer())
@@ -64,7 +69,7 @@ function plume() {
     // les versions traitées étaient trop fortes à 50-75 % de volume)
     const g = audio.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(apresMicro ? GAIN_PLUME * 0.3 : GAIN_PLUME, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(gainPlume() * (apresMicro ? 0.3 : 1), t + 0.05);
     src.connect(g).connect(audio.destination);
     src.start(t, Math.random() * plumeSon.duration);
     plumeEnCours = { src, g };
@@ -79,6 +84,16 @@ function plume() {
     src.stop(fin + 0.3);
   }, 160);
 }
+
+// Curseur de volume relâché : un court essai du crayon, au nouveau niveau
+window.addEventListener('praxeo:essaiCrayon', () => {
+  try {
+    if (!audio || audio.state !== 'running' || !donnees.reglage('bruitFrappe')) return;
+    if (plumeEnCours) { plumeEnCours.src.stop(); plumeEnCours = null; }
+    const debut = Date.now();
+    const pas = setInterval(() => { plume(); if (Date.now() - debut > 900) clearInterval(pas); }, 60);
+  } catch { /* son indisponible */ }
+});
 
 function cliquetis() {
   if (!audio || audio.state !== 'running' || !donnees.reglage('bruitFrappe')) return;
