@@ -47,11 +47,11 @@ function retablirSortie() {
 // Bruit d'écriture : un vrai crayon sur le papier (enregistrement libre de droits, Pixabay, floraphonic), 22/11/2026.
 // Il tourne en boucle à partir d'un point pris au hasard, tant que les lettres arrivent, puis s'éteint en douceur.
 let plumeSon = null, plumeChargement = null, plumeEnCours = null, plumeArret = null;
-// Volume réglable dans Réglages > Affichage et son (22/11/2026) : 50 donne un gain de 0,2 (la moitié de 0,4, jugé trop fort) ;
-// chaque cran de 5 vaut environ 2,4 dB, de 0,05 (curseur à 0) à 0,8 (curseur à 100)
+// Volume réglable dans Réglages > Affichage et son (22/11/2026). Échelle décalée le même jour : l'ancien minimum (0,05)
+// devient le milieu ; chaque cran de 5 vaut environ 2,4 dB, de 0,0125 (curseur à 0) à 0,2 (curseur à 100)
 const gainPlume = () => {
   const v = Math.min(100, Math.max(0, Number(donnees.reglage('volumeCrayon')) || 0));
-  return 0.2 * Math.pow(4, (v - 50) / 50);
+  return 0.05 * Math.pow(4, (v - 50) / 50);
 };
 function chargerPlume() {
   if (plumeSon || plumeChargement || !audio) return;
@@ -703,6 +703,11 @@ async function init() {
   if (!donnees.cache.meta.modeMinimumInitial) {
     await moteur.demarrerModeMinimum(7);
     await donnees.ecrireMeta('modeMinimumInitial', true);
+  }
+  // Curseur du crayon : l'échelle a glissé de 50 crans vers le bas ; on garde le niveau déjà réglé (22/11/2026)
+  if (!donnees.cache.meta.echelleCrayon2) {
+    await donnees.changerReglage('volumeCrayon', Math.min(100, (Number(donnees.reglage('volumeCrayon')) || 0) + 50));
+    await donnees.ecrireMeta('echelleCrayon2', true);
   }
   // journées récentes en mode minimum restées « en partie » : recomptées avec la règle corrigée (22/11/2026)
   for (let i = 1; i <= 14; i++) {
