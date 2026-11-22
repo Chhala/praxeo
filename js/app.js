@@ -36,12 +36,17 @@ function formatCout(usd) {
 let audio = null;
 // Après la dictée, iOS laisse l'audio en mode « micro + haut-parleur », où le volume est bien plus fort.
 // On repasse en sortie ordinaire (Audio Session de Safari, iOS 16.4 et plus) ; à défaut, le crayon est joué plus bas.
-let apresMicro = false;
+let apresMicro = false, neufApresMicro = false;
+// Ce changement de session coupe le contexte audio sur iPhone (22/11/2026 : plus aucun son après le bip du micro,
+// même en changeant de page) : on tente de le relancer aussitôt, et le prochain toucher en ouvre un neuf s'il reste muet.
 function retablirSortie() {
+  let session = false;
   try {
-    if (navigator.audioSession) { navigator.audioSession.type = 'ambient'; return; }
+    if (navigator.audioSession) { navigator.audioSession.type = 'ambient'; session = true; }
   } catch { /* non pris en charge */ }
-  apresMicro = true;
+  if (!session) apresMicro = true;
+  neufApresMicro = true;
+  for (const ms of [150, 600]) setTimeout(() => { try { if (audio && audio.state !== 'running' && audio.state !== 'closed') audio.resume(); } catch { /* rien */ } }, ms);
 }
 
 // Bruit d'écriture : un vrai crayon sur le papier (enregistrement libre de droits, Pixabay, floraphonic), 22/11/2026.
@@ -96,16 +101,28 @@ window.addEventListener('praxeo:essaiCrayon', () => {
 });
 
 function cliquetis() {
+  if (audio && audio.state !== 'running' && audio.state !== 'closed') { try { audio.resume(); } catch { /* rien */ } }
   if (!audio || audio.state !== 'running' || !donnees.reglage('bruitFrappe')) return;
   try { plume(); } catch { /* son indisponible */ }
 }
 
 // iOS ne compte comme geste autorisant le son qu'un toucher terminé (touchend, click), pas pointerdown (21/11/2026)
+let muetDepuis = false;   // la dernière relance n'a pas rendu le son
 function deverrouillerSon() {
   try {
     if (!donnees.reglage('bruitFrappe')) return;
+    // contexte resté muet (après le micro, ou fermé par iOS) : on en ouvre un neuf dans ce geste ; le son du crayon déjà décodé resert
+    // après le micro, iOS peut dire le contexte « en marche » alors qu'il ne sort plus rien : neuf au premier toucher, par sûreté
+    if (audio && (neufApresMicro || (audio.state !== 'running' && (audio.state === 'closed' || audio.state === 'interrupted' || muetDepuis)))) {
+      try { audio.close(); } catch { /* déjà fermé */ }
+      audio = null; plumeEnCours = null; muetDepuis = false; neufApresMicro = false;
+    }
     if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state !== 'running') audio.resume();   // « suspended » ou « interrupted » (retour d'arrière-plan)
+    if (audio.state !== 'running') {   // « suspended » (retour d'arrière-plan) : une relance suffit d'habitude ; sinon, neuf au geste suivant
+      const ctx = audio;
+      ctx.resume().then(() => { if (ctx.state !== 'running') muetDepuis = true; }, () => { muetDepuis = true; });
+      setTimeout(() => { if (audio === ctx && ctx.state !== 'running') muetDepuis = true; }, 400);
+    }
     chargerPlume();
     const b = audio.createBuffer(1, 1, 22050);         // un son muet joué dans le geste : déverrouille la sortie audio
     const s = audio.createBufferSource();
