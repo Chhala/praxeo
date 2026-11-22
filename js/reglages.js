@@ -279,7 +279,7 @@ function sectionDonnees() {
     ${rang('Exporter', `<button type="button" class="reg-bouton" data-action="exporter">Exporter</button>`, 'une sauvegarde complète, sans la clé API')}
     ${rang('Importer', `<button type="button" class="reg-bouton" data-action="importer">Importer</button>`, 'remplace les données de cet appareil')}
     ${rang('Réinitialiser', `<button type="button" class="reg-bouton danger" data-action="reinitialiser">Tout effacer</button>`, 'repartir de zéro')}
-    ${versionAppli ? `<p class="reg-aide">Version v2.${echapper(String(Number(versionAppli)))}</p>` : ''}
+    ${versionAppli ? `<p class="reg-aide">Version 2.${echapper(versionAppli)}</p>` : ''}
     <input type="file" id="fichierImport" accept="application/json,.json" hidden>`;
 }
 

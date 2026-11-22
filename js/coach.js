@@ -17,12 +17,21 @@ export const disponible = () => !!d.cleApi();
 const S = { type: 'string' };
 const N = { type: 'integer' };
 const B = { type: 'boolean' };
-const choix = (...valeurs) => ({ type: 'string', enum: valeurs });
-const action = (type, champs) => ({
+// Valeurs permises dites en description, vérifiées à l'application : une liste fermée (enum) par champ rendait la grammaire
+// trop grosse pour l'API (« compiled grammar is too large », 22/11/2026), et toutes les réponses échouaient.
+const choix = (...valeurs) => ({ type: 'string', description: valeurs.join(' | ') });
+const VALEURS = { motif: ['choix', 'empeche'], jour: ['aujourdhui', 'hier'], champ: ['duree', 'heure', 'frequence', 'importance', 'moment', 'lieu', 'minimum', 'description'],
+  statut: ['Maison', 'Dehors', 'Travail', 'En famille', 'Auto'], niveau: ['minimum', 'normale'], op: ['ajouter', 'modifier', 'oublier'] };
+// Une seule forme d'action, aux champs communs (22/11/2026) : 18 formes distinctes rendaient la grammaire trop grosse
+// pour l'API. L'application traduit ensuite chaque action vers ses champs propres (versAction).
+const TYPES_ACTION = ['ajouter_tache', 'ajouter_au_programme', 'reporter', 'retirer_du_jour', 'valider_hier', 'annuler_validation',
+  'ajouter_note', 'retirer_note', 'note_rappelee', 'arreter_rappel', 'modifier_praxis', 'mode_minimum', 'pause', 'statut',
+  'minuteur', 'commencer', 'projets_semaine', 'barre_famille'];
+const ACTION = {
   type: 'object', additionalProperties: false,
-  required: ['type', ...Object.keys(champs)],
-  properties: { type: { type: 'string', const: type }, ...champs },
-});
+  required: ['type', 'id', 'texte', 'champ', 'heure', 'date', 'nombre', 'oui', 'liste'],
+  properties: { type: { type: 'string', description: TYPES_ACTION.join(' | ') }, id: S, texte: S, champ: S, heure: S, date: S, nombre: N, oui: B, liste: { type: 'array', items: S } },
+};
 
 export const SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -31,31 +40,7 @@ export const SCHEMA = {
     message: S,
     surbrillance: { type: 'array', items: S },
     reponses: { type: 'array', items: S },
-    actions: {
-      type: 'array',
-      items: {
-        anyOf: [
-          action('ajouter_tache', { libelle: S, duree: N, heure: S, date: S, praxisId: S }),
-          action('ajouter_au_programme', { praxisId: S }),
-          action('reporter', { id: S, motif: choix('choix', 'empeche') }),
-          action('retirer_du_jour', { id: S }),
-          action('valider_hier', { id: S }),
-          action('annuler_validation', { id: S, jour: choix('aujourdhui', 'hier') }),
-          action('ajouter_note', { texte: S, praxisId: S, rappel: B }),
-          action('retirer_note', { noteId: S }),
-          action('note_rappelee', { noteId: S }),
-          action('arreter_rappel', { noteId: S }),
-          action('modifier_praxis', { praxisId: S, champ: choix('duree', 'heure', 'frequence', 'importance', 'moment', 'lieu', 'minimum', 'description'), valeur: S }),
-          action('mode_minimum', { actif: B }),
-          action('pause', { jusquau: S }),
-          action('statut', { valeur: choix('Maison', 'Dehors', 'Travail', 'En famille', 'Auto'), jusqua: S }),
-          action('minuteur', { minutes: N }),
-          action('commencer', { id: S, heure: S }),
-          action('projets_semaine', { praxisIds: { type: 'array', items: S } }),
-          action('barre_famille', { niveau: choix('minimum', 'normale') }),
-        ],
-      },
-    },
+    actions: { type: 'array', items: ACTION },
     memoire: {
       type: 'array',
       items: {
@@ -66,6 +51,28 @@ export const SCHEMA = {
     },
   },
 };
+
+// Action reçue (forme commune) → champs propres à chaque type
+export function versAction(x = {}) {
+  const t = x.type;
+  switch (t) {
+    case 'ajouter_tache': return { type: t, libelle: x.texte, duree: x.nombre, heure: x.heure, date: x.date, praxisId: x.id };
+    case 'ajouter_au_programme': return { type: t, praxisId: x.id };
+    case 'reporter': return { type: t, id: x.id, motif: x.texte };
+    case 'annuler_validation': return { type: t, id: x.id, jour: x.texte };
+    case 'ajouter_note': return { type: t, texte: x.texte, praxisId: x.id, rappel: !!x.oui };
+    case 'retirer_note': case 'note_rappelee': case 'arreter_rappel': return { type: t, noteId: x.id };
+    case 'modifier_praxis': return { type: t, praxisId: x.id, champ: x.champ, valeur: x.texte };
+    case 'mode_minimum': return { type: t, actif: !!x.oui };
+    case 'pause': return { type: t, jusquau: x.date };
+    case 'statut': return { type: t, valeur: x.texte, jusqua: x.heure };
+    case 'minuteur': return { type: t, minutes: x.nombre };
+    case 'commencer': return { type: t, id: x.id, heure: x.heure };
+    case 'projets_semaine': return { type: t, praxisIds: x.liste || [] };
+    case 'barre_famille': return { type: t, niveau: x.texte };
+    default: return { type: t, id: x.id };
+  }
+}
 
 // ═══ Consignes permanentes (mises en cache) ════
 const SYSTEME = `Tu t'appelles Kairos, comme le dieu grec du moment opportun : tu es le coach de Praxeo, une application personnelle sur iPhone qui m'aide à faire mes « praxis » : routines quotidiennes, tâches qui reviennent, projets au long cours, tâches ponctuelles. Je t'écris en français, tu me tutoies, je te parle depuis l'écran d'accueil où ton message s'affiche dans une petite zone de 4 lignes, lettre à lettre.
@@ -119,6 +126,15 @@ Chaque message que je t'envoie commence par un bloc <contexte> écrit par l'appl
 - Promettre ce que l'application ne sait pas faire : elle ne sonne pas et ne rappelle rien à une heure donnée (seul le minuteur sonne). Une chose à faire un autre jour va dans le bloc-notes : dis-le simplement.
 
 # Ta réponse (JSON)
+Chaque action a toujours les mêmes champs : type, id, texte, champ, heure, date, nombre, oui, liste. Remplis ceux qui servent à son type (ci-dessous) ; les autres restent vides ("", 0, false, []).
+- ajouter_tache : texte = libellé, nombre = durée en minutes, heure, date, id = praxisId (ou "")
+- ajouter_au_programme, retirer_du_jour, valider_hier : id
+- reporter : id, texte = motif (choix ou empeche) ; annuler_validation : id, texte = jour (aujourdhui ou hier)
+- ajouter_note : texte, id = praxisId (ou ""), oui = rappel ; retirer_note, note_rappelee, arreter_rappel : id = noteId
+- modifier_praxis : id = praxisId, champ (duree, heure, frequence, importance, moment, lieu, minimum ou description), texte = valeur
+- mode_minimum : oui = actif ; pause : date = jusqu'au ; statut : texte = Maison, Dehors, Travail, En famille ou Auto, heure = jusqu'à
+- minuteur : nombre = minutes ; commencer : id, heure ; projets_semaine : liste = identifiants ; barre_famille : texte = minimum ou normale
+Ci-dessous, les actions sont décrites avec leurs noms de sens (libellé, durée, praxisId, motif…) : place-les dans ces champs.
 - message : ce que tu me dis.
 - surbrillance : les mots exacts de ton message à mettre en valeur (éléments du bloc-notes cités, heure de fin, durée importante). Deux ou trois au plus, souvent aucun.
 - reponses : des réponses rapides en bulles, seulement quand ton message pose une vraie question (« 30 min », « 1 h », « Oui », « Corriger »…), trois au plus, un à trois mots chacune ; sinon une liste vide, ce qui est le cas le plus fréquent, notamment à l'ouverture. Jamais de bulle « Fait » ou « C'est fait » : je valide moi-même en touchant la tâche dans le programme.
@@ -344,7 +360,7 @@ export async function demander(texte, { consigneLocale = '', surMessage, relance
   const autreModele = modele === 'Opus' ? 'Haiku' : 'Opus';
   const systeme = [{ type: 'text', text: SYSTEME }];
   const appel = (m, flux) => claude.appeler({ cle, modele: m, systeme, messages, schema: SCHEMA, surMessage: flux })
-    .then(async (r) => { await compter(r); return r; });
+    .then(async (r) => { r.json.actions = (r.json.actions || []).map(versAction); await compter(r); return r; });
 
   if (!globalThis.__comparaisonEssai) {   // mode comparaison retiré des Réglages (21/11/2026)
     const principal = await appel(modele, surMessage);
@@ -448,7 +464,7 @@ export async function appliquer(json, dit = '') {
         case 'arreter_rappel': { const n = await d.modifierNote(a.noteId, { rappel: false }); if (n) defaire.push(() => d.modifierNote(a.noteId, { rappel: true })); break; }
         case 'modifier_praxis': {
           const p = existe(a.praxisId);
-          if (!p) break;
+          if (!p || !VALEURS.champ.includes(a.champ)) break;
           const avant = { ...p };
           let v = a.valeur;
           if (a.champ === 'duree' || a.champ === 'frequence') v = Math.max(1, Math.round(Number(String(v).replace(/[^\d.]/g, '')) || 0)) || undefined;
@@ -472,6 +488,7 @@ export async function appliquer(json, dit = '') {
           break;
         }
         case 'statut': {
+          if (!VALEURS.statut.includes(a.valeur)) break;
           const avant = d.cache.meta.statutManuel;
           await d.ecrireMeta('statutManuel', a.valeur === 'Auto' ? null : { valeur: a.valeur, date: auj, jusqua: /^\d{1,2}h\d{2}$/.test(a.jusqua) ? a.jusqua : '23h59' });
           defaire.push(() => d.ecrireMeta('statutManuel', avant));
@@ -491,6 +508,7 @@ export async function appliquer(json, dit = '') {
           break;
         }
         case 'barre_famille': {
+          if (!VALEURS.niveau.includes(a.niveau)) break;
           const avant = d.cache.meta.barreFamille;
           await d.ecrireMeta('barreFamille', a.niveau);
           defaire.push(() => d.ecrireMeta('barreFamille', avant));
@@ -506,14 +524,14 @@ export async function appliquer(json, dit = '') {
   for (const f of propose ? [] : json.memoire || []) {
     try {
       if (f.op === 'ajouter' && f.texte) {
-        const n = await d.ajouterFait(f.theme, f.texte);
+        const n = await d.ajouterFait(THEMES.includes(f.theme) ? f.theme : 'Habitudes', f.texte);
         defaire.push(() => d.oublierFait(n.id));
         resume.push('retenu');
       } else if (f.op === 'modifier' && f.id) {
         const avant = d.cache.memoire.find((m) => m.id === f.id);
         if (!avant) continue;
         const copie = { ...avant };
-        await d.modifierFait(f.id, { texte: f.texte || avant.texte, theme: f.theme || avant.theme });
+        await d.modifierFait(f.id, { texte: f.texte || avant.texte, theme: THEMES.includes(f.theme) ? f.theme : avant.theme });
         defaire.push(() => d.restaurerFait(copie));
       } else if (f.op === 'oublier' && f.id) {
         const avant = await d.oublierFait(f.id);

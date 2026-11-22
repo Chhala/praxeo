@@ -6,6 +6,7 @@ import * as moteur from './moteur.js';
 import * as consignes from './consignes.js';
 import * as annuler from './annuler.js';
 import * as coachIA from './coach.js';
+import { maximes } from './contenu.js';
 import { rendre as rendreStats } from './stats.js';
 import { rendre as rendreReglages, ouvrirSection } from './reglages.js';
 import { initPraxis, rendre as rendrePraxis } from './praxis.js';
@@ -59,6 +60,13 @@ function deverrouillerSon() {
   } catch { /* son indisponible */ }
 }
 for (const ev of ['touchend', 'click', 'keydown']) document.addEventListener(ev, deverrouillerSon, { passive: true, capture: true });
+// « sans rien faire » : tout toucher repousse la maxime de quelques secondes
+document.addEventListener('pointerdown', () => {
+  if (coach.minuteurMaxime && coach.mode === 'coach' && !coach.maximeMontree) {
+    clearTimeout(coach.minuteurMaxime);
+    coach.minuteurMaxime = setTimeout(() => coach.montrerMaxime(), 8000);
+  }
+}, { passive: true, capture: true });
 
 const echapper = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -100,7 +108,7 @@ function allerA(page) {
   $('#couronne').hidden = conf.droite !== 'couronne';
   $('#btnPlus').hidden = conf.droite !== 'plus';
   // en revenant d'un autre onglet (qui a pu changer les données) ; pas au démarrage, pour garder le message du jour
-  if (page === 'accueil' && precedente !== 'accueil' && coach.el) rafraichir();
+  if (page === 'accueil' && precedente !== 'accueil' && coach.el) { coach.maximeMontree = false; rafraichir(); }
   if (page === 'praxis') rendrePraxis();   // les retards dépendent du programme du jour
   if (page === 'stats') ouvrirStats();      // toujours l'état par défaut à l'ouverture
   for (const p of Object.keys(PAGES)) $('#page-' + p).hidden = p !== page;
@@ -258,6 +266,8 @@ const coach = {
   dernierTap: 0,
   minuteurFrappe: null,
   minuteurRetour: null,
+  minuteurMaxime: null,
+  maximeMontree: false,   // une maxime par passage à l'accueil
   minuteurEnvoi: null,
   texteComplet: '',
   reco: null,
@@ -333,6 +343,7 @@ const coach = {
     clearInterval(this.minuteurFrappe); this.minuteurFrappe = null;
     clearTimeout(this.minuteurRetour);
     clearTimeout(this.minuteurEnvoi);
+    clearTimeout(this.minuteurMaxime);
   },
 
   // le coach écrit lettre à lettre ; mode 'coach' (consigne) ou 'reponse'.
@@ -380,6 +391,18 @@ const coach = {
     this.flux = false;
   },
 
+  // Une maxime quand je reste quelques secondes à l'accueil sans rien faire (22/11/2026) : sans Claude,
+  // tirée du carnet, une fois par passage ; puis la consigne revient
+  montrerMaxime() {
+    if (etat.page !== 'accueil' || document.hidden || this.mode !== 'coach' || !donnees.reglage('maximes') || !maximes.length) return;
+    this.maximeMontree = true;
+    let i = Math.floor(Math.random() * maximes.length);
+    if (maximes.length > 1 && i === this.derniereMaxime) i = (i + 1) % maximes.length;
+    this.derniereMaxime = i;
+    const [texte, auteur] = maximes[i];
+    this.afficher(`« ${texte} » ${auteur}`, 'maxime');
+  },
+
   finFrappe() {
     if (this.flux) return;   // tant que la réponse arrive, on ne coupe pas
     clearInterval(this.minuteurFrappe); this.minuteurFrappe = null;
@@ -388,6 +411,8 @@ const coach = {
     this.montrerReponses(this.reponses);
     if (this.minutesClaude) this.montrerMinuteur(this.minutesClaude);
     else if (this.mode === 'coach') this.montrerMinuteur(minuteurPropose());
+    if (this.mode === 'maxime') { this.minuteurRetour = setTimeout(() => this.afficher(consigne()), 12000); return; }
+    if (this.mode === 'coach' && !this.maximeMontree) this.minuteurMaxime = setTimeout(() => this.montrerMaxime(), 8000);
     if (this.mode === 'reponse' && !this.reponses.length && !this.minutesClaude) {
       // la réponse reste quelques secondes, puis la consigne (recalculée) revient
       const duree = Math.max(4500, this.texteComplet.length * 80);

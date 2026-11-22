@@ -419,6 +419,7 @@ export async function importer(donnees) {
     return { format: 'v2' };
   }
   if (donnees && Array.isArray(donnees.praxis) && donnees.statsHistory) {
+    await db.vider(['ponctuelles']);   // les tâches ajoutées ne se mélangent pas à la sauvegarde (praxis, journal, journées : vidés par importerV1)
     const r = await importerV1(donnees);
     return { format: 'v1', ...r };
   }
