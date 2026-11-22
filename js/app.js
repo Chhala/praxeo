@@ -67,6 +67,7 @@ const MAX_PROGRAMME = 8;   // au plus 8 lignes à l'écran (§6.1)
 
 const etat = {
   page: 'accueil',
+  dernierRendu: 0,   // dernier changement visible de la liste du programme (voir valider)
   journee: [],   // la journée, ordre chronologique (moteur.composer)
   messageDuJour: null,
   lignesOuvertes: new Set(),
@@ -130,16 +131,20 @@ function rafraichir({ garderMessage = false } = {}) {
 }
 
 function rendreProgramme() {
+  const avant = $('#programme').innerHTML;
   $('#programme').innerHTML = programmeVisible().map((t) => `
     <li class="tache" data-id="${t.id}">
       <span class="heure">${echapper(t.heure)}</span>
       <span class="bulle${estPause(t) || t.type === 'reserve' ? ' pause' : ''}"${estPause(t) || t.type === 'reserve' ? '' : ` style="background:${t.couleur}"`}>${echapper(t.libelle)}</span>
       ${t.duree ? `<span class="duree">${echapper(dureeCourte(t.duree))}</span>` : ''}
     </li>`).join('');
+  if ($('#programme').innerHTML !== avant) etat.dernierRendu = Date.now();
 }
 
 // Valider depuis le programme ou depuis une ligne : c'est la même chose (éléments synchronisés).
 function valider(id) {
+  // les bulles viennent de bouger (tâche retirée, ajoutée…) : un toucher dans les 0,8 s suivantes visait sans doute une autre bulle
+  if (Date.now() - etat.dernierRendu < 800) return;
   const t = etat.journee.find((x) => x.id === id);
   if (!t || t.faite) return;
   const li = $(`.tache[data-id="${CSS.escape(id)}"]`);
@@ -505,6 +510,7 @@ const coach = {
   envoyer() {
     const texte = this.texteSaisi();
     if (!texte) return;
+    if (this.reco) { try { this.reco.abort(); } catch { /* rien */ } this.reco = null; this.btn.classList.remove('ecoute'); }
     this.el.blur();
     this.parler(texte);
   },
@@ -525,6 +531,8 @@ const coach = {
       let t = '';
       for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
       this.el.textContent = t;
+      // phrase terminée : on coupe le micro tout de suite (sur iPhone, il restait parfois allumé, 22/11/2026)
+      if (e.results[e.results.length - 1].isFinal) { try { r.stop(); } catch { /* déjà arrêté */ } }
     };
     r.onend = () => {
       this.reco = null;
@@ -616,6 +624,12 @@ async function init() {
   if (!donnees.cache.meta.modeMinimumInitial) {
     await moteur.demarrerModeMinimum(7);
     await donnees.ecrireMeta('modeMinimumInitial', true);
+  }
+  // journées récentes en mode minimum restées « en partie » : recomptées avec la règle corrigée (22/11/2026)
+  for (let i = 1; i <= 14; i++) {
+    const x = new Date(); x.setDate(x.getDate() - i); x.setHours(23, 59, 0, 0);
+    const j = donnees.cache.jours.get(donnees.cleDate(x));
+    if (j && j.source === 'v2' && j.minimum && j.niveau === 1) await moteur.majNiveauDuJour(x);
   }
   etat.messageDuJour = consignes.messageDuJour();
   etat.journee = moteur.composer().items;

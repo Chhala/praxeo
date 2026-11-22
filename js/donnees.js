@@ -42,7 +42,7 @@ export async function charger() {
   else if (NOUVEAUX[meta.memoireDepart]) await db.ecrire('memoire', MEMOIRE_DEPART.filter((f) => NOUVEAUX[meta.memoireDepart].includes(f.id)));
   if (meta.memoireDepart !== 5) await ecrireMeta('memoireDepart', 5);
   // Rythmes réels des tâches (21/11/2026) : corrigés une fois dans les données déjà reprises de la v1
-  if ((meta.habitudesTaches || 0) < 2) {   // v2 : dîner à 19h30 y compris en famille
+  if ((meta.habitudesTaches || 0) < 3) {   // v2 : dîner à 19h30 y compris en famille ; v3 : le lit les jours de repos
     for (const p of await db.tout('praxis')) {
       const cle = normaliser(p.libelle);
       if (!HABITUDES_TACHES.includes(cle)) continue;
@@ -54,7 +54,10 @@ export async function charger() {
     const soir = (await db.tout('memoire')).find((f) => f.id === 'm_soir');
     const nouveau = MEMOIRE_DEPART.find((f) => f.id === 'm_soir');
     if (soir && nouveau && (soir.texte.startsWith('Je dîne vers 19h') || soir.texte.startsWith('Je prépare à manger vers 19h30, un peu plus tôt'))) await db.ecrire('memoire', [{ ...soir, texte: nouveau.texte, date: nouveau.date }]);
-    await ecrireMeta('habitudesTaches', 2);
+    const lit = (await db.tout('memoire')).find((f) => f.id === 'm_lit');
+    const litNouveau = MEMOIRE_DEPART.find((f) => f.id === 'm_lit');
+    if (lit && litNouveau && lit.texte === 'Les jours travaillés, je fais mon lit avant de partir, vers 7h10.') await db.ecrire('memoire', [{ ...lit, texte: litNouveau.texte, date: litNouveau.date }]);
+    await ecrireMeta('habitudesTaches', 3);
   }
   await recharger();
 }
@@ -130,6 +133,11 @@ function mesurerDuree(praxisId, maintenant) {
   const ecart = maintenant.getHours() * 60 + maintenant.getMinutes() - derniere;
   if (ecart <= 0 || ecart > 120) return null;
   return ecart >= p.duree / 2 && ecart <= p.duree * 2 ? ecart : null;
+}
+// Remettre un événement retiré (« Annuler » après une validation retirée par Kairos)
+export async function restaurerEvenement(e) {
+  await db.ecrire('events', [e]);
+  cache.events.push(e);
 }
 export async function supprimerEvenement(id) {
   cache.events = cache.events.filter((e) => e.id !== id);

@@ -151,7 +151,8 @@ export function composer(maintenant = new Date()) {
   const douche = (d.planning().matin || {}).douche || 0;
   // Les jours travaillés, le lit se fait juste avant de partir (vers 7h10 pour un départ à 7h30, 21/11/2026)
   const depart = j.travail !== 'aucun' ? d.departDuJour(maintenant) : null;
-  const heureMatin = (p) => (estLit(p) && depart ? m(depart) - 20 : m(p.heure));
+  // les jours de repos, le lit se fait au moins une heure après le lever, chambre aérée (22/11/2026)
+  const heureMatin = (p) => (estLit(p) ? (depart ? m(depart) - 20 : lever + 60) : m(p.heure));
   const matinales = routinesDuJour.filter(estMatinale).filter(garder).sort((a, b) => heureMatin(a) - heureMatin(b));
   const besoin = matinales.reduce((s, p) => s + (p.duree || 10), 0) + douche;
   const matinCourt = minimum || remonte || besoin > finMatin - lever;   // pas le temps de tout, ou remontée : petite version (§5.10)
@@ -162,25 +163,26 @@ export function composer(maintenant = new Date()) {
     const st = etat(p.id);
     const min = matinCourt && p.minimum && p.section !== 'piliers' ? 2 : (p.duree || 10);
     const litAvantDepart = estLit(p) && !!depart;
-    const heureNormale = litAvantDepart ? heureMatin(p) : Math.max(t, m(p.heure));
+    const litAere = estLit(p) && !depart;
+    const heureNormale = litAvantDepart || litAere ? heureMatin(p) : Math.max(t, m(p.heure));
     // Passé l'heure : « trop tard » pour les routines du matin, sauf le lit et ce qui se fait partout (Lexis)
     // (le lit d'avant le départ reste possible jusqu'au départ, même quand la fenêtre se ferme plus tôt avec ma fille)
-    if (!st.faite && now > (litAvantDepart ? m(depart) : finMatin)) {
+    if (!st.faite && now > (litAvantDepart ? m(depart) : litAere ? m('12h00') : finMatin)) {
       if (estLit(p) || (p.lieu || '').toLowerCase() === 'partout') versSoir.push(p);
       continue;
     }
     items.push({ id: p.id, heure: versHeure(heureNormale), libelle: p.libelle, couleur: p.couleur, duree: min,
       type: 'routine', pilier: p.section === 'piliers', minimum: matinCourt && !!p.minimum && p.section !== 'piliers', derniere: d.derniereFois(p.id), ...st });
-    if (!litAvantDepart) t = heureNormale + min;
+    if (!litAvantDepart && !litAere) t = heureNormale + min;
     // la douche suit le lever (après la première routine, « pieds au sol ») ; les jours de repos, après le lit comme avant
-    if (douche && !doucheFaite && (depart ? !litAvantDepart : estLit(p))) {
+    if (douche && !doucheFaite && !estLit(p)) {
       items.push({ id: 'reserve_douche', heure: versHeure(t), libelle: 'Douche', duree: douche, type: 'reserve', faite: faits.has('reserve_douche') || now > t + douche });
       t += douche;
       doucheFaite = true;
     }
   }
   // jour travaillé sans autre routine du matin (le samedi) : la douche suit le lever
-  if (douche && !doucheFaite && depart) items.push({ id: 'reserve_douche', heure: versHeure(lever), libelle: 'Douche', duree: douche, type: 'reserve', faite: faits.has('reserve_douche') || now > lever + douche });
+  if (douche && !doucheFaite && matinales.length) items.push({ id: 'reserve_douche', heure: versHeure(lever), libelle: 'Douche', duree: douche, type: 'reserve', faite: faits.has('reserve_douche') || now > lever + douche });
 
   // ── 2. La journée et le soir ──
   const debutApresMidi = { journee: m('18h00'), matin: m('13h30'), aucun: m('9h00') }[j.travail] ?? m('18h00');
@@ -345,7 +347,13 @@ export function composer(maintenant = new Date()) {
 // ═══ Niveau du jour et série (§5.10 point 8) ════
 // L'essentiel du jour : les piliers prévus (en version normale) et les tâches essentielles prévues.
 export function essentielDuJour(maintenant = new Date()) {
-  const { items } = composer(maintenant);
+  // passé le retour au calme, le programme n'affiche plus le lit oublié : l'essentiel, lui, se juge sur la journée entière
+  // (sinon un lit pas fait disparaissait du bilan à 23h59, 22/11/2026)
+  const fin = m(REGLES.retourAuCalme);
+  const avant = maintenant.getHours() * 60 + maintenant.getMinutes() >= fin
+    ? new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate(), Math.floor((fin - 1) / 60), (fin - 1) % 60)
+    : maintenant;
+  const { items } = composer(avant);
   return items.filter((x) => x.pilier || (x.type === 'jour' && (d.praxisParId(x.id)?.importance === 'essentielle')));
 }
 
@@ -360,7 +368,8 @@ export async function majNiveauDuJour(maintenant = new Date()) {
   // En famille, les piliers en version minimum suffisent (§5.10, validé le 19/11/2026),
   // sauf si le coach a relevé la barre (j'en fais habituellement davantage ces jours-là)
   const barreBasse = (d.cache.meta.barreFamille || 'minimum') === 'minimum';
-  const fait = (x) => faits.has(x.id) || (famille && barreBasse && touches.has(x.id));
+  // En mode minimum, la petite version EST l'essentiel du jour (22/11/2026 : la journée restait « en partie » tout validé)
+  const fait = (x) => faits.has(x.id) || ((modeMinimum(date) || (famille && barreBasse)) && touches.has(x.id));
   const niveau = essentiel.length && essentiel.every(fait) ? 2 : touches.size ? 1 : 0;
   const jour = { date, niveau, minimum: modeMinimum(date), source: 'v2' };
   d.cache.jours.set(date, jour);

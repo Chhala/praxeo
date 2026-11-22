@@ -40,6 +40,7 @@ export const SCHEMA = {
           action('reporter', { id: S, motif: choix('choix', 'empeche') }),
           action('retirer_du_jour', { id: S }),
           action('valider_hier', { id: S }),
+          action('annuler_validation', { id: S, jour: choix('aujourdhui', 'hier') }),
           action('ajouter_note', { texte: S, praxisId: S, rappel: B }),
           action('retirer_note', { noteId: S }),
           action('note_rappelee', { noteId: S }),
@@ -126,6 +127,7 @@ Chaque message que je t'envoie commence par un bloc <contexte> écrit par l'appl
   - ajouter_tache : une tâche nouvelle (libellé en clair, durée en minutes), une séance d'un projet au long cours dont j'ai choisi la durée, ou une praxis à faire un autre jour (avec son praxisId). heure « 16h30 » pour une séance à heure fixe, sinon "". date : "" pour aujourd'hui, ou « AAAA-MM-JJ » pour un autre jour, prise dans la liste « Prochains jours » du contexte. praxisId : l'identifiant de la praxis si c'en est une, sinon "".
   - Déplacer une tâche à un autre jour (« le linge, fais-le dimanche ») : retirer_du_jour pour aujourd'hui ET ajouter_tache avec son praxisId, sa durée et la date de ce jour-là, dans la même réponse. Ne dis jamais que c'est fait sans ces deux actions.
   - valider_hier (seulement si je te dis qu'une tâche d'hier a bien été faite).
+  - annuler_validation : quand je dis qu'une tâche validée ne l'a pas été en vrai (« je n'ai pas fait la lecture hier », « j'ai touché le sol par erreur »), son id et le jour (aujourdhui ou hier) : la validation est retirée du journal, sans reproche.
   - Ne pas faire une tâche maintenant : reporter avec motif choix = plus tard aujourd'hui (elle reste au programme, en fin de journée) ; retirer_du_jour = pas aujourd'hui, par choix (elle reste due et revient un autre jour) ; reporter avec motif empeche = empêché aujourd'hui (imprévu, malade, panne : neutre, elle sort du programme).
   - ajouter_note : une idée ou une chose à faire un autre jour. Une idée pour une praxis (« idée pour l'appli », « pour Magie ») : praxisId de cette praxis et rappel vrai, elle me sera rappelée au début de la prochaine séance. Une chose pour un autre jour : praxisId "", rappel vrai. Les idées vont dans le bloc-notes, jamais dans la mémoire.
   - retirer_note, note_rappelee, arreter_rappel.
@@ -214,11 +216,21 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
     l.push(`- ${bits.join(' · ')} : ${etatItem(t)}`);
   }
 
-  const hier = new Date(maintenant); hier.setDate(hier.getDate() - 1); hier.setHours(23, 59, 0, 0);
-  const jh = d.cache.jours.get(d.cleDate(hier));
-  if (jh && jh.niveau !== 'pause') {
-    const manques = moteur.essentielDuJour(hier).filter((x) => !x.faite).map((x) => `${x.libelle} [${x.id}]`);
-    l.push('', `Hier : ${jh.niveau === 2 ? 'l\'essentiel était fait' : `essentiel manqué${manques.length ? ` (${manques.join(', ')})` : ''}`}.`);
+  // Mémoire courte (22/11/2026) : les 3 derniers jours, tâche par tâche, pour répondre à « qu'est-ce que je n'ai pas fini hier ? »
+  l.push('', 'Les 3 derniers jours (le journal fait foi) :');
+  for (let i = 1; i <= 3; i++) {
+    const x = new Date(maintenant); x.setDate(x.getDate() - i); x.setHours(23, 59, 0, 0);
+    const cle = d.cleDate(x);
+    const jj = d.cache.jours.get(cle);
+    const nom = `${i === 1 ? 'hier, ' : ''}${JOURS[x.getDay()]} ${dateCourte(cle)}`;
+    if (jj?.niveau === 'pause') { l.push(`- ${nom} : en pause.`); continue; }
+    const essentiel = moteur.essentielDuJour(x);
+    const ids = new Set(essentiel.map((t) => t.id));
+    const etatT = (t) => (t.faite ? (t.enMinimum ? 'fait en petite version' : 'fait') : 'pas fait');
+    const autres = [...new Set(d.cache.events.filter((e) => e.date === cle && (e.type === 'fait' || e.type === 'minimum') && !ids.has(e.praxisId))
+      .map((e) => d.praxisParId(e.praxisId)?.libelle || e.ponctuelle).filter(Boolean))];
+    const bilan = jj?.niveau === 2 ? 'l\'essentiel fait' : jj?.niveau === 1 ? 'en partie' : 'rien de validé';
+    l.push(`- ${nom}${jj?.minimum ? ' (mode minimum)' : ''} : ${bilan}. Essentiel : ${essentiel.length ? essentiel.map((t) => `${t.libelle} ${etatT(t)}`).join(', ') : 'rien de prévu'}. Autres faits : ${autres.length ? autres.join(', ') : 'aucun'}.`);
   }
 
   l.push('', 'Bloc-notes :');
@@ -405,6 +417,18 @@ export async function appliquer(json, dit = '') {
         case 'ajouter_au_programme': if (existe(a.praxisId)) { const ev = await d.noter('ajoute', a.praxisId); defaire.push(() => d.supprimerEvenement(ev.id)); } break;
         case 'reporter': { const ev = await d.noter(a.motif === 'empeche' ? 'empeche' : 'reporte', a.id); defaire.push(() => d.supprimerEvenement(ev.id)); break; }
         case 'retirer_du_jour': { const ev = await d.noter('retire', a.id); defaire.push(() => d.supprimerEvenement(ev.id)); break; }
+        case 'annuler_validation': {
+          const jour = new Date(); if (a.jour === 'hier') jour.setDate(jour.getDate() - 1);
+          jour.setHours(a.jour === 'hier' ? 23 : jour.getHours(), a.jour === 'hier' ? 59 : jour.getMinutes(), 0, 0);
+          const cleJ = d.cleDate(jour);
+          const evs = d.cache.events.filter((e) => e.date === cleJ && e.praxisId === a.id && (e.type === 'fait' || e.type === 'minimum'));
+          if (!evs.length) break;
+          for (const e of evs) await d.supprimerEvenement(e.id);
+          await moteur.majNiveauDuJour(jour);
+          defaire.push(async () => { for (const e of evs) await d.restaurerEvenement(e); await moteur.majNiveauDuJour(jour); });
+          resume.push(`${d.praxisParId(a.id)?.libelle || 'Tâche'} : validation retirée`);
+          break;
+        }
         case 'valider_hier': {
           if (!existe(a.id)) break;
           const hier = new Date(); hier.setDate(hier.getDate() - 1); hier.setHours(23, 59, 0, 0);
