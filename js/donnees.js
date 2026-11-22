@@ -126,7 +126,9 @@ function mesurerDuree(praxisId, maintenant) {
   if (!p || !p.duree) return null;
   const date = cleDate(maintenant);
   // commencée (minuteur, « C'est commencé ») : la mesure part de son heure de début (21/11/2026)
-  const debut = cache.events.filter((e) => e.date === date && e.praxisId === praxisId && e.type === 'commence' && e.heure).pop();
+  // (déplacée ensuite à une autre heure : ce début ne compte plus, 22/11/2026)
+  const horaire = cache.events.filter((e) => e.date === date && e.praxisId === praxisId && (e.type === 'commence' || e.type === 'deplace') && e.heure).pop();
+  const debut = horaire && horaire.type === 'commence' ? horaire : null;
   const precedentes = cache.events.filter((e) => e.date === date && e.heure && (e.type === 'fait' || e.type === 'minimum'));
   if (!debut && !precedentes.length) return null;
   const derniere = debut ? enMinutes(debut.heure) : precedentes.map((e) => enMinutes(e.heure)).sort((a, b) => b - a)[0];
@@ -167,7 +169,10 @@ function couleurLibre() {
   return libres[Math.floor(Math.random() * libres.length)];
 }
 export async function ajouterPonctuelle(q) {
-  const objet = { id: `q_${Date.now()}`, date: aujourdhui(), duree: 20, ...q, couleur: q.couleur || couleurLibre() };
+  // identifiant unique, même pour deux tâches ajoutées dans la même milliseconde (deux tâches d'une même réponse de Kairos)
+  let n = Date.now();
+  while (cache.ponctuelles.some((x) => x.id === `q_${n}`)) n++;
+  const objet = { id: `q_${n}`, date: aujourdhui(), duree: 20, ...q, couleur: q.couleur || couleurLibre() };
   cache.ponctuelles.push(objet);
   await db.ecrire('ponctuelles', objet);
   return objet;
@@ -198,7 +203,9 @@ export async function supprimerPonctuelle(id) {
 
 // ── Bloc-notes (§5.4) ──────────────────────────
 export async function ajouterNote(libelle, praxisId = null, extra = {}) {
-  const n = { id: `n_${Date.now()}`, libelle, couleur: '#4a453e', ...(praxisId ? { praxisId } : {}), date: aujourdhui(), ...extra };
+  let k = Date.now();
+  while (cache.notes.some((x) => x.id === `n_${k}`)) k++;   // deux notes de la même réponse : deux identifiants
+  const n = { id: `n_${k}`, libelle, couleur: '#4a453e', ...(praxisId ? { praxisId } : {}), date: aujourdhui(), ...extra };
   cache.notes.push(n);
   await db.ecrire('notes', n);
   return n;

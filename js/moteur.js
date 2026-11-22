@@ -155,7 +155,11 @@ export function composer(maintenant = new Date()) {
   // les jours de repos, le lit se fait au moins une heure après le lever, chambre aérée (22/11/2026)
   const heureMatin = (p) => (estLit(p) ? (depart ? m(depart) - 20 : lever + 60) : m(p.heure));
   // Déplacée pour aujourd'hui (« Mouvement après le cinéma », 22/11/2026) : un bloc fixe à l'heure choisie
-  const deplaces = new Map(evs.filter((e) => e.type === 'deplace' && e.heure).map((e) => [e.praxisId, e.heure]));
+  // Commencée ou déplacée : c'est le dernier des deux qui compte (22/11/2026 : Mouvement, noté « commencé » par erreur,
+  // restait en cours à 13h45 malgré le déplacement à 19h00)
+  const dernierHoraire = new Map();
+  for (const e of evs.filter((x) => (x.type === 'commence' || x.type === 'deplace') && x.heure).sort((a, b) => (a.id ?? 0) - (b.id ?? 0))) dernierHoraire.set(e.praxisId, e);
+  const deplaces = new Map([...dernierHoraire].filter(([, e]) => e.type === 'deplace').map(([id, e]) => [id, e.heure]));
   const matinales = routinesDuJour.filter(estMatinale).filter((p) => !deplaces.has(p.id)).filter(garder).sort((a, b) => heureMatin(a) - heureMatin(b));
   const besoin = matinales.reduce((s, p) => s + (p.duree || 10), 0) + douche;
   const matinCourt = minimum || remonte || besoin > finMatin - lever;   // pas le temps de tout, ou remontée : petite version (§5.10)
@@ -218,7 +222,7 @@ export function composer(maintenant = new Date()) {
   const candidats = [];
   const vus = new Set(fixes.map((f) => f.id));
   // Tâche commencée et pas encore validée : elle garde son heure de début, au lieu d'être replacée à l'heure actuelle (21/11/2026)
-  const debuts = new Map(evs.filter((e) => e.type === 'commence').map((e) => [e.praxisId, e.heure]));
+  const debuts = new Map([...dernierHoraire].filter(([, e]) => e.type === 'commence').map(([id, e]) => [id, e.heure]));
   for (const [id, h] of debuts) {
     if (vus.has(id) || faits.has(id) || minis.has(id) || retires.has(id) || !h) continue;
     const p = d.praxisParId(id);

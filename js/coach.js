@@ -426,7 +426,15 @@ export async function appliquer(json, dit = '') {
           // « je vais faire… », « je commence… », « là je… » : c'est pour maintenant (22/11/2026 : la tâche partait en fin de journée)
           const mn = (h) => { const [hh, mm] = String(h).split('h').map(Number); return hh * 60 + (mm || 0); };
           const ici = new Date().getHours() * 60 + new Date().getMinutes();
-          const pourMaintenant = (!a.heure || (/^\d{1,2}h\d{0,2}$/.test(a.heure) && Math.abs(mn(a.heure) - ici) <= 15)) && (!a.date || a.date <= auj) && /\b(je vais (faire|m'y mettre|me mettre)|je commence|je d[ée]bute|je d[ée]marre|je m'y mets|je me mets|là,? je|maintenant)\b/i.test(String(dit || ''));
+          // seulement la tâche visée par la phrase « maintenant » : dans « classe le mouvement après le cinéma et je range la chambre
+          // maintenant », Mouvement n'est pas pour maintenant (22/11/2026 : il était noté commencé à 13h45)
+          const declencheur = /\b(je vais (faire|m'y mettre|me mettre)|je commence|je d[ée]bute|je d[ée]marre|je m'y mets|je me mets|là,? je|maintenant)\b/i;
+          const plat = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          const clause = String(dit || '').split(/\s*(?:[,;.!?]|\bet\b|\bpuis\b)\s*/i).find((c) => declencheur.test(c));
+          const mots = plat(a.libelle || p?.libelle).split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+          const seuleTache = (json.actions || []).filter((x) => x.type === 'ajouter_tache' || x.type === 'commencer').length === 1;
+          const visee = !!clause && (seuleTache || mots.some((w) => plat(clause).includes(w)));
+          const pourMaintenant = visee && (!a.heure || (/^\d{1,2}h\d{0,2}$/.test(a.heure) && Math.abs(mn(a.heure) - ici) <= 15)) && (!a.date || a.date <= auj);
           // l'heure de début aux 5 minutes les plus proches : dit à 14h03, la tâche commence à 14h05
           if (pourMaintenant) { const x = new Date(); const t5 = Math.round((x.getHours() * 60 + x.getMinutes()) / 5) * 5; a.heure = `${Math.floor(t5 / 60)}h${String(t5 % 60).padStart(2, '0')}`; }
           // une praxis de la bibliothèque que je commence maintenant : elle est commencée, pas recopiée (22/11/2026 : « je débute le rangement »)
