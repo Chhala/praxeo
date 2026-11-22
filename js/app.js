@@ -47,7 +47,7 @@ function retablirSortie() {
 // Bruit d'écriture : un vrai crayon sur le papier (enregistrement libre de droits, Pixabay, floraphonic), 22/11/2026.
 // Il tourne en boucle à partir d'un point pris au hasard, tant que les lettres arrivent, puis s'éteint en douceur.
 let plumeSon = null, plumeChargement = null, plumeEnCours = null, plumeArret = null;
-const GAIN_PLUME = 1;   // son brut, comme au tout premier réglage (versions traitées trop fortes, 22/11/2026)
+const GAIN_PLUME = 0.4;   // son brut ; au gain 1 (tout premier réglage) encore trop fort à 50 % de volume, 22/11/2026
 function chargerPlume() {
   if (plumeSon || plumeChargement || !audio) return;
   plumeChargement = fetch('./assets/sons/plume.mp3').then((r) => r.arrayBuffer())
