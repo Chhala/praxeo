@@ -9,7 +9,7 @@ import * as coachIA from './coach.js';
 import { maximes } from './contenu.js';
 import { rendre as rendreStats } from './stats.js';
 import { rendre as rendreReglages, ouvrirSection } from './reglages.js';
-import { initPraxis, rendre as rendrePraxis } from './praxis.js';
+import { initPraxis, rendre as rendrePraxis, ouvrirFiche, ouvrirPonctuelle } from './praxis.js';
 import { initStats, ouvrirStats } from './stats.js';
 import { initReglages } from './reglages.js';
 import { lancerMinuteur, dureeCourte, SVG_SABLIER } from './minuteur.js';
@@ -694,7 +694,12 @@ function menuTache(id) {
     if (rep === 'minuteur') { lancerMinuteur(t.duree); noterDebut(t); }     // dans le geste : exigé par iOS
     if (rep === 'commence') noterDebut(t);
     fermerFeuille();
-    if (rep === 'modifier') {
+    // Modifier : la fiche de la praxis ou de la tâche « une fois » (22/11/2026) ; repas, pause, douche : par Kairos
+    const pq = rep === 'modifier' && (donnees.praxisParId(t.id) || donnees.cache.ponctuelles.find((x) => x.id === t.id));
+    if (pq) {
+      const apres = () => setTimeout(() => { rafraichir({ garderMessage: true }); rendrePraxis(); }, 50);
+      setTimeout(() => (donnees.praxisParId(t.id) ? ouvrirFiche(pq, apres) : ouvrirPonctuelle(pq, apres)), 250);
+    } else if (rep === 'modifier') {
       setTimeout(() => ouvrirFeuille(`<p class="feuille-question">Pour modifier, dis-le à Kairos.</p>
         <p class="feuille-sous">« Masques jusqu'à 20h », « la poussière demain »…</p>
         <div class="feuille-choix"><button class="choix choix-oui" type="button" data-rep="ok">Compris</button></div>`, fermerSurReponse), 250);

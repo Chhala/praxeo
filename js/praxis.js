@@ -20,7 +20,7 @@ const SECTIONS = [
 const SVG_CHEVRON = '<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg>';
 const NOMS_JOURS = ['', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'];
 
-const COULEURS = ['#005A92', '#5D1935', '#D4AF37', '#E2953B', '#6E7A68', '#A66E4E', '#3B596A', '#1A1A18'];
+const COULEURS = donnees.PALETTE;
 
 const etat = {
   get praxis() { return donnees.cache.praxis; },
@@ -75,7 +75,7 @@ export function rendre() {
     const items = etat.praxis
       .filter((p) => p.section === s.cle && correspond(p))
       .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr', { sensitivity: 'base' }));
-    if (etat.recherche && !items.length) return '';
+    if (etat.recherche && !items.length) return s.cle === 'inactives' ? ligneUneFois() : '';
     const total = etat.praxis.filter((p) => p.section === s.cle).length;
     const ouverte = etat.recherche ? true : etat.ouvertes.has(s.cle);   // la recherche déplie ce qui contient un résultat
     const retards = items.filter(enRetard).length;
@@ -89,7 +89,7 @@ export function rendre() {
           <span class="praxis-info">${echapper(infoTemps(p))}</span>
         </span>
       </li>`).join('');
-    return `
+    return (s.cle === 'inactives' ? ligneUneFois() : '') + `
       <div class="ligne${ouverte ? ' ouverte' : ''}" data-section="${s.cle}">
         <button class="ligne-tete" type="button" aria-expanded="${ouverte}">
           <span class="ligne-nom">${s.nom}</span>
@@ -103,6 +103,87 @@ export function rendre() {
     ? `<button type="button" class="bandeau" data-action="questionnaire">${sansDate} tâche${sansDate > 1 ? 's' : ''} sans date : quand ${sansDate > 1 ? 'les as-tu faites' : 'l\'as-tu faite'} pour la dernière fois ? <span>Répondre (1 min)</span></button>`
     : '';
   liste.innerHTML = bandeau + (html || '<p class="a-venir">Aucune praxis ne correspond.</p>');
+}
+
+// ── Tâches « une fois » (ajoutées à la main ou par Kairos, 22/11/2026 : on ne pouvait ni les voir ni les modifier) ──
+const JOURS_COURTS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+function quandUneFois(q) {
+  if (!q.date && q.echeance) { const [, m, j] = q.echeance.split('-'); return `avant le ${Number(j)}/${Number(m)}`; }
+  const auj = donnees.aujourdhui();
+  if (!q.date || q.date <= auj) return q.heure ? `aujourd'hui, ${q.heure}` : 'aujourd\'hui';
+  const [a, m, j] = q.date.split('-').map(Number);
+  return `${JOURS_COURTS[new Date(a, m - 1, j).getDay()]} ${j}/${m}${q.heure ? `, ${q.heure}` : ''}`;
+}
+function ligneUneFois() {
+  const items = donnees.cache.ponctuelles.filter(correspond)
+    .sort((a, b) => (a.date || a.echeance || '').localeCompare(b.date || b.echeance || '') || (a.heure || '').localeCompare(b.heure || ''));
+  if (etat.recherche && !items.length) return '';
+  const ouverte = etat.recherche ? true : etat.ouvertes.has('uneFois');
+  const lignes = items.map((q) => `
+      <li class="praxis-ligne" data-ponctuelle="${q.id}">
+        <span class="bulle" style="background:${q.couleur || '#A66E4E'}">${echapper(q.libelle)}</span>
+        ${q.duree ? `<span class="duree">${q.duree < 60 ? `${q.duree} min` : `${Math.floor(q.duree / 60)}h${q.duree % 60 ? String(q.duree % 60).padStart(2, '0') : ''}`}</span>` : ''}
+        <span class="praxis-droite"><span class="praxis-info">${echapper(quandUneFois(q))}</span></span>
+      </li>`).join('');
+  return `
+      <div class="ligne${ouverte ? ' ouverte' : ''}" data-section="uneFois">
+        <button class="ligne-tete" type="button" aria-expanded="${ouverte}">
+          <span class="ligne-nom">Une fois</span>
+          <span class="ligne-val">${items.length} ${SVG_CHEVRON}</span>
+        </button>
+        <ul class="ligne-corps praxis-corps">${lignes}</ul>
+      </div>`;
+}
+
+// Fiche d'une tâche « une fois » : nom, durée, jour, heure, couleur ; supprimer
+export function ouvrirPonctuelle(q, quandFermee = null) {
+  const champ = (html, libelle) => `<div class="fiche-rang"><dt>${libelle}</dt><dd>${html}</dd></div>`;
+  ouvrirFeuille(`
+    <div class="fiche-tete"><input class="fiche-nom" data-champ="libelle" type="text" value="${echapper(q.libelle)}" style="background:${q.couleur || '#A66E4E'}" aria-label="Nom" autocomplete="off"></div>
+    <dl class="fiche">
+      ${champ(`<span class="fiche-nombre"><input class="fiche-champ" data-champ="duree" type="number" inputmode="numeric" min="1" max="600" value="${q.duree ?? ''}">min</span>`, 'Durée')}
+      ${champ(`<input class="fiche-champ" data-champ="date" type="date" value="${q.date || ''}">`, 'Jour')}
+      ${champ(`<input class="fiche-champ" data-champ="heure" type="time" value="${versChamp(q.heure)}">`, 'Heure')}
+      ${champ(`<span class="nuancier">${COULEURS.map((c) => `<button type="button" class="nuance${c === q.couleur ? ' choisie' : ''}" data-couleur="${c}" style="background:${c}" aria-label="Couleur"></button>`).join('')}</span>`, 'Couleur')}
+    </dl>
+    <p class="reg-aide">Sans heure, Kairos la place dans la journée. Faite, elle disparaît en laissant une trace dans le journal.</p>
+    <div class="feuille-choix">
+      <button class="choix choix-supprimer" type="button" data-rep="supprimer">Supprimer</button>
+      <button class="choix choix-oui" type="button" data-rep="fermer">Fermer</button>
+    </div>`, (racine) => {
+    const sauver = () => donnees.enregistrerPonctuelle(q);
+    racine.addEventListener('change', (e) => {
+      const c = e.target.dataset.champ;
+      if (!c) return;
+      let v = e.target.value.trim();
+      if (c === 'libelle') { if (!v) { e.target.value = q.libelle; return; } v = v.charAt(0).toUpperCase() + v.slice(1); }
+      if (c === 'duree') { v = Math.max(1, Math.round(Number(v) || 0)) || 20; e.target.value = v; }
+      if (c === 'heure') v = depuisChamp(v);
+      if (c === 'date' && v) delete q.echeance;
+      if (v === '' || v === undefined) delete q[c]; else q[c] = v;
+      if (c === 'date' && !q.date && !q.echeance) q.date = donnees.aujourdhui();
+      sauver();
+    });
+    racine.addEventListener('click', async (e) => {
+      const nu = e.target.closest('[data-couleur]');
+      if (nu) {
+        q.couleur = nu.dataset.couleur;
+        racine.querySelectorAll('.nuance').forEach((x) => x.classList.toggle('choisie', x === nu));
+        $('.fiche-nom', racine).style.background = q.couleur;
+        sauver();
+        return;
+      }
+      const b = e.target.closest('[data-rep]');
+      if (!b) return;
+      if (b.dataset.rep === 'supprimer') {
+        const copie = { ...q };
+        await donnees.supprimerPonctuelle(q.id);
+        annuler.enregistrer(`${q.libelle} : supprimée`, () => donnees.restaurerPonctuelle(copie));
+      }
+      fermerFeuille();
+      rendre();
+    });
+  }, quandFermee);
 }
 
 // ── Invite « En retard » ───────────────────────
@@ -140,7 +221,7 @@ const JOURS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const MAX_PILIERS = 4;   // §3.2 : 3 ou 4 piliers au maximum
 
 // Fiche complète, sans intertitres (§6.2) : chaque champ est enregistré dès qu'il change (lot 1)
-function ouvrirFiche(p) {
+export function ouvrirFiche(p, quandFermee = null) {
   const actif = p.section !== 'inactives';
   const famille = actif ? p.section : (p.sectionAvant || 'routines');
   const routine = famille === 'routines' || famille === 'piliers';
@@ -218,7 +299,7 @@ function ouvrirFiche(p) {
           if (nouveau === 'taches' && !p.frequence) p.frequence = 7;
           if (nouveau === 'long' && p.progression === undefined) p.progression = 0;
           if (nouveau === 'routines' && !p.jours) p.jours = [1, 2, 3, 4, 5, 6, 7];
-          sauver().then(() => ouvrirFiche(p));
+          sauver().then(() => ouvrirFiche(p, quandFermee));
           return;
         }
         p[c] = seg.dataset.val;
@@ -259,7 +340,7 @@ function ouvrirFiche(p) {
           p.section = oui ? (p.sectionAvant || 'routines') : 'inactives';
         }
         erreur('');
-        sauver().then(() => ouvrirFiche(p));
+        sauver().then(() => ouvrirFiche(p, quandFermee));
         return;
       }
       const b = e.target.closest('[data-rep]');
@@ -268,7 +349,7 @@ function ouvrirFiche(p) {
       fermerFeuille();
       rendre();
     });
-  });
+  }, quandFermee);
 }
 
 function confirmerSuppression(p) {
@@ -410,6 +491,12 @@ export function initPraxis({ ajouterAuProgramme, dejaPrevue }) {
     const retard = e.target.closest('[data-retard]');
     if (retard) {
       inviterRetard(etat.praxis.find((p) => p.id === retard.dataset.retard));
+      return;
+    }
+    const uneFois = e.target.closest('[data-ponctuelle]');
+    if (uneFois) {
+      const q = donnees.cache.ponctuelles.find((x) => x.id === uneFois.dataset.ponctuelle);
+      if (q) ouvrirPonctuelle(q);
       return;
     }
     const ligne = e.target.closest('.praxis-ligne');

@@ -154,7 +154,9 @@ export function composer(maintenant = new Date()) {
   const depart = j.travail !== 'aucun' ? d.departDuJour(maintenant) : null;
   // les jours de repos, le lit se fait au moins une heure après le lever, chambre aérée (22/11/2026)
   const heureMatin = (p) => (estLit(p) ? (depart ? m(depart) - 20 : lever + 60) : m(p.heure));
-  const matinales = routinesDuJour.filter(estMatinale).filter(garder).sort((a, b) => heureMatin(a) - heureMatin(b));
+  // Déplacée pour aujourd'hui (« Mouvement après le cinéma », 22/11/2026) : un bloc fixe à l'heure choisie
+  const deplaces = new Map(evs.filter((e) => e.type === 'deplace' && e.heure).map((e) => [e.praxisId, e.heure]));
+  const matinales = routinesDuJour.filter(estMatinale).filter((p) => !deplaces.has(p.id)).filter(garder).sort((a, b) => heureMatin(a) - heureMatin(b));
   const besoin = matinales.reduce((s, p) => s + (p.duree || 10), 0) + douche;
   const matinCourt = minimum || remonte || besoin > finMatin - lever;   // pas le temps de tout, ou remontée : petite version (§5.10)
   const versSoir = [];
@@ -195,9 +197,9 @@ export function composer(maintenant = new Date()) {
   if (j.travail !== 'journee') fixes.push({ id: 'repas_dejeuner', libelle: 'Déjeuner', heure: Math.max(debutApresMidi, m('12h30')), duree: REGLES.dejeuner, type: 'repas', couleur: '#6E7A68' });
   const dinerFamille = famille(m(REGLES.heureDiner));
   fixes.push({ id: 'repas_diner', libelle: 'Dîner', heure: m(dinerFamille ? REGLES.heureDinerFamille : REGLES.heureDiner), duree: dinerFamille ? REGLES.dinerFamille : REGLES.diner, type: 'repas', couleur: '#6E7A68' });
-  for (const p of routinesDuJour.filter((x) => !estMatinale(x)).filter(garder)) {
+  for (const p of routinesDuJour.filter((x) => !estMatinale(x) || deplaces.has(x.id)).filter(garder)) {
     const petite = !!p.minimum && (minimum || (remonte && p.section !== 'piliers'));   // remontée : piliers en entier, le reste en petit
-    fixes.push({ id: p.id, libelle: p.libelle, heure: m(p.heure || REGLES.retourAuCalme), duree: petite ? 5 : (p.duree || 20), type: 'routine', couleur: p.couleur, pilier: p.section === 'piliers', minimum: petite, derniere: d.derniereFois(p.id) });
+    fixes.push({ id: p.id, libelle: p.libelle, heure: m(deplaces.get(p.id) || p.heure || REGLES.retourAuCalme), ...(deplaces.has(p.id) ? { fixe: true } : {}), duree: petite ? 5 : (p.duree || 20), type: 'routine', couleur: p.couleur, pilier: p.section === 'piliers', minimum: petite, derniere: d.derniereFois(p.id) });
   }
   // Le lit oublié le matin revient en rentrant, avec un peu de rangement (§4.1) ; Lexis aussi
   // Passé le retour au calme, plus de lit : c'est l'heure de se coucher (19/11/2026)
@@ -209,7 +211,7 @@ export function composer(maintenant = new Date()) {
   // la fatigue aidant, on lit en dernier (19/11/2026)
   const finRattrapages = Math.max(0, ...fixes.filter((f) => f.rattrapage && !etat(f.id).faite).map((f) => f.heure + f.duree));
   for (const f of fixes) {
-    if (f.type === 'routine' && !f.rattrapage && f.heure >= finJournee && f.heure < finRattrapages && !etat(f.id).faite) f.heure = finRattrapages;
+    if (f.type === 'routine' && !f.rattrapage && !f.fixe && f.heure >= finJournee && f.heure < finRattrapages && !etat(f.id).faite) f.heure = finRattrapages;
   }
 
   // Candidats flexibles : ajoutées (« En retard » → Oui), ponctuelles, tâches dues, séances au long cours
@@ -228,6 +230,17 @@ export function composer(maintenant = new Date()) {
     vus.add(id);
     if (q && q.praxisId) vus.add(q.praxisId);
   }
+  for (const [id, h] of deplaces) {
+    if (vus.has(id) || faits.has(id) || minis.has(id) || retires.has(id)) continue;
+    const p = d.praxisParId(id);
+    const q = !p && d.cache.ponctuelles.find((x) => x.id === id);
+    if (!p && !q) continue;
+    const dureeT = p ? (p.section === 'long' ? REGLES.seanceLongCours : duree(p)) : (q.duree || 20);
+    fixes.push({ id, libelle: (p || q).libelle, heure: m(h), duree: dureeT, type: p && p.section === 'routines' ? 'routine' : 'jour', couleur: (p || q).couleur || '#A66E4E',
+      ponctuelle: !!q, fixe: true, derniere: p ? d.derniereFois(p.id) : undefined });
+    vus.add(id);
+    if (q && q.praxisId) vus.add(q.praxisId);
+  }
   // Retirer une praxis du jour la retire sous toutes ses formes : ajoutée au programme, ou tâche du jour qui la porte
   // (sinon « le linge, fais-le dimanche » laissait une copie du linge au programme, 21/11/2026)
   for (const id of ajoutees) {
@@ -241,7 +254,8 @@ export function composer(maintenant = new Date()) {
     if (due && q.praxisId && vus.has(q.praxisId)) continue;   // une seule fois la même praxis dans la journée
     // une séance fixée par le coach (« Masques jusqu'à 16h30 ») : un bloc à heure fixe, aujourd'hui
     if (due && q.heure && q.date === date && !retires.has(q.id)) {
-      fixes.push({ id: q.id, libelle: q.libelle, heure: m(q.heure), duree: q.duree || 20, type: 'jour', ponctuelle: true, couleur: q.couleur || '#A66E4E', ...(q.butoir ? { butoir: q.butoir } : {}) });
+      // une heure dite (le cinéma à 14h30, un rendez-vous) se garde : les autres blocs se placent autour (22/11/2026)
+      fixes.push({ id: q.id, libelle: q.libelle, heure: m(q.heure), duree: q.duree || 20, type: 'jour', ponctuelle: true, fixe: true, couleur: q.couleur || '#A66E4E', ...(q.butoir ? { butoir: q.butoir } : {}) });
       vus.add(q.id);
       if (q.praxisId) vus.add(q.praxisId);
       continue;
@@ -303,12 +317,25 @@ export function composer(maintenant = new Date()) {
   const finDiner = (() => { const r = fixes.find((x) => x.id === 'repas_diner'); return r ? r.heure + r.duree : 0; })();
   const placees = [];
   const fixesTries = fixes.slice().sort((a, b) => a.heure - b.heure || (a.rattrapage ? -1 : 0));
+  // chaque bloc commence après la fin la plus tardive de ceux d'avant (pas seulement du précédent : un bloc gardé
+  // à son heure au milieu du dîner ne doit pas faire remonter la lecture dans le dîner, 22/11/2026)
+  let finMax = fixesTries.length ? fixesTries[0].heure + fixesTries[0].duree : 0;
   for (let i = 1; i < fixesTries.length; i++) {
-    const fin = fixesTries[i - 1].heure + fixesTries[i - 1].duree;
-    // une tâche commencée garde son heure : c'est le repas ou le bloc d'avant qui a été écourté (22/11/2026)
-    if (fixesTries[i].enCours) continue;
-    if (fixesTries[i].heure < fin && fixesTries[i].heure < finJournee + 30) fixesTries[i].heure = fin;
+    const f = fixesTries[i];
+    // une tâche commencée garde son heure : c'est le repas ou le bloc d'avant qui a été écourté (22/11/2026) ;
+    // une tâche déplacée à une heure précise la garde aussi
+    if (!f.enCours && !f.fixe && f.heure < finJournee + 30) {
+      if (f.heure < finMax) f.heure = finMax;
+      // et pas par-dessus un bloc gardé à son heure, plus loin dans la soirée (Mouvement déplacé à 22h00)
+      for (let n = 0; n < 6; n++) {
+        const g = fixesTries.find((x) => x !== f && (x.enCours || x.fixe) && x.heure < f.heure + f.duree && x.heure + x.duree > f.heure);
+        if (!g) break;
+        f.heure = g.heure + g.duree;
+      }
+    }
+    finMax = Math.max(finMax, f.heure + f.duree);
   }
+  fixesTries.sort((a, b) => a.heure - b.heure);   // l'ordre a pu changer : le placement suit les heures réelles
   let curseur = cinq(Math.max(now, debutApresMidi));   // on ne place rien dans le passé, et à l'heure ronde
   let effort = 0;
   const prochainFixe = (c) => fixesTries.find((f) => f.heure + f.duree > c);

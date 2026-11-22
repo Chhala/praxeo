@@ -26,7 +26,7 @@ const VALEURS = { motif: ['choix', 'empeche'], jour: ['aujourdhui', 'hier'], cha
 // pour l'API. L'application traduit ensuite chaque action vers ses champs propres (versAction).
 const TYPES_ACTION = ['ajouter_tache', 'ajouter_au_programme', 'reporter', 'retirer_du_jour', 'valider_hier', 'annuler_validation',
   'ajouter_note', 'retirer_note', 'note_rappelee', 'arreter_rappel', 'modifier_praxis', 'mode_minimum', 'pause', 'statut',
-  'minuteur', 'commencer', 'projets_semaine', 'barre_famille'];
+  'minuteur', 'commencer', 'deplacer', 'projets_semaine', 'barre_famille'];
 const ACTION = {
   type: 'object', additionalProperties: false,
   required: ['type', 'id', 'texte', 'champ', 'heure', 'date', 'nombre', 'oui', 'liste'],
@@ -68,6 +68,7 @@ export function versAction(x = {}) {
     case 'statut': return { type: t, valeur: x.texte, jusqua: x.heure };
     case 'minuteur': return { type: t, minutes: x.nombre };
     case 'commencer': return { type: t, id: x.id, heure: x.heure };
+    case 'deplacer': return { type: t, id: x.id, heure: x.heure };
     case 'projets_semaine': return { type: t, praxisIds: x.liste || [] };
     case 'barre_famille': return { type: t, niveau: x.texte };
     default: return { type: t, id: x.id };
@@ -103,7 +104,7 @@ Un moteur local, sans IA, compose ma journée (le programme que tu reçois dans 
 - Si je dis « il faut que je… » ou « je dois… » pour aujourd'hui, c'est une obligation : ajoute-la tout de suite (ajouter_tache), sans demander, elle passe en premier. Si je dis « j'ai envie de… », c'est respecté, mais tu peux ajuster la durée pour garder de la place. Tu commentes une seule fois, brièvement, si ça déborde ou si quelque chose d'important passe à la trappe.
 - Ne pas faire n'est pas échouer : distingue « empêché » (imprévu, panne, malade : neutre) de « reporté par choix » (pas envie : la tâche reste due). Déduis-le de ce que je dis ; ne demande que si c'est vraiment ambigu. Si une même tâche est souvent reportée, propose de l'ajuster (plus courte, autre moment) au lieu d'insister.
 - Une envie nouvelle (« j'ai envie de travailler sur Masques ») : demande la taille avec des réponses rapides (30 min, 1 h, 2 h…). Dès que j'ai choisi la durée, crée la séance (ajouter_tache avec le praxisId) et dis en une phrase jusqu'à quelle heure elle va et ce qui se décale ; ne redemande pas mon accord.
-- Ce que je vais faire tout de suite (« je vais faire 30 minutes d'impression 3D », « je commence le sol ») : c'est pour maintenant. Une tâche nouvelle : ajouter_tache avec l'heure actuelle arrondie aux 5 minutes les plus proches (dit à 14h03 : 14h05 ; à 14h02 : 14h00), et c'est cette heure que tu annonces ; une tâche déjà au programme : commencer, avec la même heure arrondie. Jamais en fin de journée.
+- Ce que je vais faire tout de suite (« je vais faire 30 minutes d'impression 3D », « je commence le sol », « je débute le rangement ») : c'est pour maintenant. Une praxis de la bibliothèque, même absente du programme : commencer (jamais ajouter_tache). Une tâche nouvelle : ajouter_tache avec l'heure actuelle arrondie aux 5 minutes les plus proches (dit à 14h03 : 14h05 ; à 14h02 : 14h00), et c'est cette heure que tu annonces ; une tâche déjà au programme : commencer, avec la même heure arrondie. Jamais en fin de journée.
 - Une absence (« je pars au gymnase à 16h05, je suis de nouveau dispo à 18h ») : une seule tâche à heure fixe qui couvre tout, de l'heure de départ à l'heure où je suis de nouveau disponible, trajet et douche compris (ajouter_tache avec un libellé court, « Parkour », heure « 16h05 », durée = l'écart en minutes, ici 115). Rien ne doit tomber pendant ce temps : le moteur replace le reste avant ou après.
 - Pour une longue séance (45 min ou plus) ou avant une heure butoir (départ, rendez-vous, coucher), tu peux proposer un minuteur : il fait sonner l'Horloge de l'iPhone. L'application ne peut pas sonner seule ; pas de notifications.
 - Rendez-vous de la semaine : le dimanche soir, à l'ouverture, si les projets de la semaine ne sont pas choisis, ton message est uniquement « Quels sont tes 2 ou 3 projets cette semaine ? » (le contexte le signale). Sauté, tu le reproposes le lundi à l'ouverture, une fois, sans insister. Jamais cette question à la fin d'une réponse sur autre chose.
@@ -134,7 +135,7 @@ Chaque action a toujours les mêmes champs : type, id, texte, champ, heure, date
 - ajouter_note : texte, id = praxisId (ou ""), oui = rappel ; retirer_note, note_rappelee, arreter_rappel : id = noteId
 - modifier_praxis : id = praxisId, champ (duree, heure, frequence, importance, moment, lieu, minimum ou description), texte = valeur
 - mode_minimum : oui = actif ; pause : date = jusqu'au ; statut : texte = Maison, Dehors, Travail, En famille ou Auto, heure = jusqu'à
-- minuteur : nombre = minutes ; commencer : id, heure ; projets_semaine : liste = identifiants ; barre_famille : texte = minimum ou normale
+- minuteur : nombre = minutes ; commencer : id, heure ; deplacer : id, heure ; projets_semaine : liste = identifiants ; barre_famille : texte = minimum ou normale
 Ci-dessous, les actions sont décrites avec leurs noms de sens (libellé, durée, praxisId, motif…) : place-les dans ces champs.
 - message : ce que tu me dis.
 - surbrillance : les mots exacts de ton message à mettre en valeur (éléments du bloc-notes cités, heure de fin, durée importante). Deux ou trois au plus, souvent aucun.
@@ -149,6 +150,7 @@ Ci-dessous, les actions sont décrites avec leurs noms de sens (libellé, durée
   - ajouter_note : une idée ou une chose à faire un autre jour. Une idée pour une praxis (« idée pour l'appli », « pour Magie ») : praxisId de cette praxis et rappel vrai, elle me sera rappelée au début de la prochaine séance. Une chose pour un autre jour : praxisId "", rappel vrai. Les idées vont dans le bloc-notes, jamais dans la mémoire.
   - retirer_note, note_rappelee, arreter_rappel.
   - modifier_praxis : seulement après mon accord explicite. duree et frequence en nombre de jours ou minutes (« 25 »), heure au format « 18h30 », importance : essentielle, utile ou bonus.
+  - deplacer : changer l'heure d'une tâche du programme, pour aujourd'hui seulement (« mets Mouvement après le cinéma », « le sol à 17h ») : son id et la nouvelle heure (« 18h15 »), calculée d'après le programme et le contexte (la fin du cinéma, d'une absence, d'un rendez-vous). Pour tous les jours : modifier_praxis heure, après mon accord. Si je demande deux choses (« déplace Mouvement et je commence le rangement »), fais les deux actions.
   - commencer : quand je dis que j'ai commencé une tâche (« j'ai commencé le rangement il y a 45 minutes »), son id et l'heure de début (« 14h15 », calculée depuis l'heure du contexte). Une tâche « commencé à …, en cours » ne se redonne jamais comme à commencer : parle du temps qu'il reste.
   - mode_minimum, pause (jusquau au format AAAA-MM-JJ ; "" pour reprendre), statut (« je suis dehors » ; jusqua au format « 19h00 », ou "" pour la journée ; Auto pour revenir au statut déduit), minuteur (en minutes, quand je l'accepte), projets_semaine (identifiants des praxis choisies dimanche), barre_famille (quand j'accepte de relever ou de redescendre la barre des jours en famille).
 - memoire : ce que tu retiens durablement de moi, en phrases courtes à la première personne, comme si je les écrivais (« Je fais mes courses au travail, en fin de service, 20 minutes au plus. »). Thèmes : Planning, Préférences, Habitudes, Forme.
@@ -424,9 +426,16 @@ export async function appliquer(json, dit = '') {
           // « je vais faire… », « je commence… », « là je… » : c'est pour maintenant (22/11/2026 : la tâche partait en fin de journée)
           const mn = (h) => { const [hh, mm] = String(h).split('h').map(Number); return hh * 60 + (mm || 0); };
           const ici = new Date().getHours() * 60 + new Date().getMinutes();
-          const pourMaintenant = (!a.heure || (/^\d{1,2}h\d{0,2}$/.test(a.heure) && Math.abs(mn(a.heure) - ici) <= 15)) && (!a.date || a.date <= auj) && /\b(je vais (faire|m'y mettre|me mettre)|je commence|je m'y mets|je me mets|là,? je|maintenant)\b/i.test(String(dit || ''));
+          const pourMaintenant = (!a.heure || (/^\d{1,2}h\d{0,2}$/.test(a.heure) && Math.abs(mn(a.heure) - ici) <= 15)) && (!a.date || a.date <= auj) && /\b(je vais (faire|m'y mettre|me mettre)|je commence|je d[ée]bute|je d[ée]marre|je m'y mets|je me mets|là,? je|maintenant)\b/i.test(String(dit || ''));
           // l'heure de début aux 5 minutes les plus proches : dit à 14h03, la tâche commence à 14h05
           if (pourMaintenant) { const x = new Date(); const t5 = Math.round((x.getHours() * 60 + x.getMinutes()) / 5) * 5; a.heure = `${Math.floor(t5 / 60)}h${String(t5 % 60).padStart(2, '0')}`; }
+          // une praxis de la bibliothèque que je commence maintenant : elle est commencée, pas recopiée (22/11/2026 : « je débute le rangement »)
+          if (pourMaintenant && p) {
+            const ev = await d.noter('commence', p.id, { heure: a.heure });
+            defaire.push(() => d.supprimerEvenement(ev.id));
+            resume.push(`${p.libelle} commencée à ${a.heure}`);
+            break;
+          }
           const q = await d.ajouterPonctuelle({
             libelle: a.libelle || p?.libelle || 'Tâche', duree: Math.max(1, a.duree || p?.duree || 20),
             date: /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') && a.date > auj ? a.date : auj,   // un autre jour (« fais-le dimanche », 21/11/2026)
@@ -507,6 +516,14 @@ export async function appliquer(json, dit = '') {
           if (!existe(a.id) && !d.cache.ponctuelles.some((q) => q.id === a.id)) break;
           const ev = await d.noter('commence', a.id, /^\d{1,2}h\d{2}$/.test(a.heure || '') ? { heure: a.heure } : {});
           defaire.push(() => d.supprimerEvenement(ev.id));
+          break;
+        }
+        case 'deplacer': {   // une heure pour aujourd'hui seulement (22/11/2026 : « Mouvement après le cinéma » restait en place)
+          if (!existe(a.id) && !d.cache.ponctuelles.some((q) => q.id === a.id)) break;
+          if (!/^\d{1,2}h\d{0,2}$/.test(a.heure || '')) break;
+          const ev = await d.noter('deplace', a.id, { heure: a.heure.replace(/h$/, 'h00') });
+          defaire.push(() => d.supprimerEvenement(ev.id));
+          resume.push(`${(d.praxisParId(a.id) || d.cache.ponctuelles.find((q) => q.id === a.id)).libelle} à ${ev.heure}`);
           break;
         }
         case 'projets_semaine': {

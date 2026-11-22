@@ -156,8 +156,18 @@ export function derniereFois(praxisId) {
 }
 
 // ── Tâches ponctuelles (§3.4) ──────────────────
+// Palette des praxis (la même que la fiche) : une tâche ajoutée sans couleur prend la moins portée du moment
+// (22/11/2026 : toutes les tâches ajoutées par Kairos étaient brunes)
+export const PALETTE = ['#005A92', '#5D1935', '#D4AF37', '#E2953B', '#6E7A68', '#A66E4E', '#3B596A', '#1A1A18'];
+function couleurLibre() {
+  const n = new Map(PALETTE.map((c) => [c, 0]));
+  for (const q of cache.ponctuelles) if (n.has(q.couleur)) n.set(q.couleur, n.get(q.couleur) + 1);
+  const moins = Math.min(...n.values());
+  const libres = PALETTE.filter((c) => n.get(c) === moins);
+  return libres[Math.floor(Math.random() * libres.length)];
+}
 export async function ajouterPonctuelle(q) {
-  const objet = { id: `q_${Date.now()}`, date: aujourdhui(), duree: 20, couleur: '#A66E4E', ...q };
+  const objet = { id: `q_${Date.now()}`, date: aujourdhui(), duree: 20, ...q, couleur: q.couleur || couleurLibre() };
   cache.ponctuelles.push(objet);
   await db.ecrire('ponctuelles', objet);
   return objet;
@@ -171,6 +181,11 @@ export async function terminerPonctuelle(id) {
   cache.ponctuelles = cache.ponctuelles.filter((x) => x.id !== id);
   await db.supprimer('ponctuelles', id);
   return { q, ev };
+}
+export async function enregistrerPonctuelle(q) {
+  const i = cache.ponctuelles.findIndex((x) => x.id === q.id);
+  if (i > -1) cache.ponctuelles[i] = q; else cache.ponctuelles.push(q);
+  await db.ecrire('ponctuelles', q);
 }
 export async function restaurerPonctuelle(q) {
   cache.ponctuelles.push(q);
