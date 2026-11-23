@@ -218,7 +218,7 @@ const versChamp = (h) => { if (!h || !h.includes('h')) return ''; const [hh, mm]
 const depuisChamp = (v) => { if (!v) return ''; const [hh, mm] = v.split(':'); return `${Number(hh)}h${mm}`; };
 const TYPES = [['routines', 'Routine'], ['taches', 'Tâche'], ['long', 'Long cours']];
 const JOURS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-const MAX_PILIERS = 4;   // §3.2 : 3 ou 4 piliers au maximum
+const MAX_PILIERS = 6;   // §3.2 prévoyait 3 ou 4 ; porté à 6 le 23/11/2026 (coucher et échauffement)
 
 // Fiche complète, sans intertitres (§6.2) : chaque champ est enregistré dès qu'il change (lot 1)
 export function ouvrirFiche(p, quandFermee = null) {

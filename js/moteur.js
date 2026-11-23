@@ -203,7 +203,9 @@ export function composer(maintenant = new Date()) {
   fixes.push({ id: 'repas_diner', libelle: 'Dîner', heure: m(dinerFamille ? REGLES.heureDinerFamille : REGLES.heureDiner), duree: dinerFamille ? REGLES.dinerFamille : REGLES.diner, type: 'repas', couleur: '#6E7A68' });
   for (const p of routinesDuJour.filter((x) => !estMatinale(x) || deplaces.has(x.id)).filter(garder)) {
     const petite = !!p.minimum && (minimum || (remonte && p.section !== 'piliers'));   // remontée : piliers en entier, le reste en petit
-    fixes.push({ id: p.id, libelle: p.libelle, heure: m(deplaces.get(p.id) || p.heure || REGLES.retourAuCalme), ...(deplaces.has(p.id) ? { fixe: true } : {}), duree: petite ? 5 : (p.duree || 20), type: 'routine', couleur: p.couleur, pilier: p.section === 'piliers', minimum: petite, derniere: d.derniereFois(p.id) });
+    // le coucher suit l'heure du planning du jour (22h, ou 22h30 certains soirs)
+    const heureP = /COUCHER/.test(normaliser(p.libelle)) && j.coucher ? j.coucher : p.heure;
+    fixes.push({ id: p.id, libelle: p.libelle, heure: m(deplaces.get(p.id) || heureP || REGLES.retourAuCalme), ...(deplaces.has(p.id) ? { fixe: true } : {}), duree: petite ? 5 : (p.duree || 20), type: 'routine', couleur: p.couleur, pilier: p.section === 'piliers', minimum: petite, derniere: d.derniereFois(p.id) });
   }
   // Le lit oublié le matin revient en rentrant, avec un peu de rangement (§4.1) ; Lexis aussi
   // Passé le retour au calme, plus de lit : c'est l'heure de se coucher (19/11/2026)
@@ -265,7 +267,8 @@ export function composer(maintenant = new Date()) {
       continue;
     }
     if (due && !retires.has(q.id)) {
-      candidats.push({ p: { ...q, section: 'ponctuelle', importance: q.importance || 'utile' }, force: !!q.date, ponctuelle: true });
+      // prévue aujourd'hui : imposée ; restée d'un jour passé : placée seulement s'il y a la place (pas après 22h, 23/11/2026)
+      candidats.push({ p: { ...q, section: 'ponctuelle', importance: q.importance || 'utile' }, force: q.date === date, ponctuelle: true });
       if (q.praxisId) vus.add(q.praxisId);   // le linge prévu dimanche n'apparaît qu'une fois ce jour-là
     }
   }
@@ -388,7 +391,33 @@ export function essentielDuJour(maintenant = new Date()) {
     ? new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate(), Math.floor((fin - 1) / 60), (fin - 1) % 60)
     : maintenant;
   const { items } = composer(avant);
-  return items.filter((x) => x.pilier || (x.type === 'jour' && (d.praxisParId(x.id)?.importance === 'essentielle')));
+  const liste = items.filter((x) => x.pilier || (x.type === 'jour' && (d.praxisParId(x.id)?.importance === 'essentielle')));
+  // un pilier du matin manqué sort du programme une fois l'heure passée : il compte quand même (23/11/2026)
+  const date = d.cleDate(maintenant), dow = d.jourSemaine(maintenant);
+  if (enPause(date)) return liste;
+  const evs = d.cache.events.filter((e) => e.date === date && e.praxisId);
+  const a = (id, ...types) => evs.some((e) => e.praxisId === id && types.includes(e.type));
+  const ids = new Set(liste.map((x) => x.id));
+  for (const p of d.cache.praxis.filter((x) => x.section === 'piliers' && !ids.has(x.id))) {
+    if (p.jours && !p.jours.map(Number).includes(dow)) continue;
+    if (p.creeLe && p.creeLe > date) continue;
+    if (a(p.id, 'retire', 'empeche')) continue;
+    liste.push({ id: p.id, libelle: p.libelle, couleur: p.couleur, type: 'routine', pilier: true, horsProgramme: true,
+      faite: a(p.id, 'fait', 'minimum'), enMinimum: a(p.id, 'minimum') && !a(p.id, 'fait') });
+  }
+  return liste;
+}
+
+// Un pilier manqué la veille (prévu, ni fait ni empêché) : il ne peut pas être laissé deux jours de suite
+function pilierManqueLaVeille(id, maintenant) {
+  const v = new Date(maintenant); v.setDate(v.getDate() - 1);
+  const cle = d.cleDate(v);
+  const jv = d.cache.jours.get(cle);
+  if (jv && jv.pilierLaisse === id) return true;
+  if (jv && jv.niveau === 'pause') return false;
+  const p = d.praxisParId(id);
+  if (!p || (p.jours && !p.jours.map(Number).includes(d.jourSemaine(v))) || (p.creeLe && p.creeLe > cle)) return false;
+  return !d.cache.events.some((e) => e.date === cle && e.praxisId === id && ['fait', 'minimum', 'empeche', 'retire'].includes(e.type));
 }
 
 // maintenant : un autre jour pour recompter la veille (« Hier, la poussière : faite ? » → oui, §5.9)
@@ -404,14 +433,18 @@ export async function majNiveauDuJour(maintenant = new Date()) {
   const barreBasse = (d.cache.meta.barreFamille || 'minimum') === 'minimum';
   // En mode minimum, la petite version EST l'essentiel du jour (22/11/2026 : la journée restait « en partie » tout validé)
   const fait = (x) => faits.has(x.id) || ((modeMinimum(date) || (famille && barreBasse)) && touches.has(x.id));
-  const niveau = essentiel.length && essentiel.every(fait) ? 2 : touches.size ? 1 : 0;
+  // Joker de pilier (23/11/2026) : la journée est validée avec un seul pilier manqué, s'il n'a pas déjà manqué la veille
+  // (« ne jamais rater deux fois ») ; les tâches essentielles, elles, ne se sautent pas
+  const manques = essentiel.filter((x) => !fait(x));
+  const pilierLaisse = manques.length === 1 && manques[0].pilier && !pilierManqueLaVeille(manques[0].id, maintenant) ? manques[0].id : null;
+  const niveau = essentiel.length && (!manques.length || pilierLaisse) ? 2 : touches.size ? 1 : 0;
   // En mode minimum, une journée où j'en fais nettement plus que le minimum fait avancer la série (22/11/2026) :
   // l'essentiel fait, plus au moins 30 minutes d'autres praxis (pas quelques bricoles de 5 minutes)
   const idsEssentiel = new Set(essentiel.map((x) => x.id));
   const enPlus = evs.filter((e) => (e.type === 'fait' || e.type === 'minimum') && !idsEssentiel.has(e.praxisId))
     .reduce((s, e) => s + (e.dureeReelle || e.duree || d.praxisParId(e.praxisId)?.duree || 0), 0);
   const minimum = modeMinimum(date);
-  const jour = { date, niveau, minimum, ...(minimum ? { enPlus, plus: niveau === 2 && enPlus >= REGLES.enPlusMinimum } : {}), source: 'v2' };
+  const jour = { date, niveau, minimum, ...(pilierLaisse ? { pilierLaisse } : {}), ...(minimum ? { enPlus, plus: niveau === 2 && enPlus >= REGLES.enPlusMinimum } : {}), source: 'v2' };
   d.cache.jours.set(date, jour);
   await (await import('./db.js')).ecrire('jours', jour);
   return niveau;

@@ -59,6 +59,30 @@ export async function charger() {
     if (lit && litNouveau && lit.texte === 'Les jours travaillés, je fais mon lit avant de partir, vers 7h10.') await db.ecrire('memoire', [{ ...lit, texte: litNouveau.texte, date: litNouveau.date }]);
     await ecrireMeta('habitudesTaches', 3);
   }
+  // Piliers (23/11/2026) : le coucher à 22h et l'échauffement du matin rejoignent les piliers, une fois
+  if (!meta.piliersCoucherEchauffement) {
+    const toutes = await db.tout('praxis');
+    if (!toutes.some((p) => /COUCHER/.test(normaliser(p.libelle)))) {
+      await db.ecrire('praxis', [{ id: 'p_coucher', libelle: 'Coucher', couleur: '#3B596A', section: 'piliers', jours: [1, 2, 3, 4, 5, 6, 7],
+        heure: '22h00', duree: 5, importance: 'essentielle', moment: 'Soir', lieu: 'Maison', creeLe: aujourdhui(),
+        description: 'Au lit à l\'heure du planning (22h, 22h30 certains soirs), 10 minutes de tolérance. Je peux le valider plus tard, ou le lendemain matin auprès de Kairos.' }]);
+    }
+    for (const p of toutes.filter((x) => normaliser(x.libelle) === 'ECHAUFFEMENT' && x.section !== 'piliers')) {
+      await db.ecrire('praxis', [{ ...p, section: 'piliers', importance: 'essentielle' }]);
+    }
+    await ecrireMeta('piliersCoucherEchauffement', true);
+  }
+  // Tâches « une fois » d'un jour passé : celles à heure fixe (un créneau, une séance) et celles retirées ce jour-là ne
+  // reviennent pas (23/11/2026 : deux Mouvement et un Tirage revenus de la veille) ; les autres restent à faire
+  {
+    const auj = aujourdhui();
+    const evs = await db.tout('events');
+    for (const q of await db.tout('ponctuelles')) {
+      if (!q.date || q.date >= auj) continue;
+      const retiree = evs.some((e) => e.praxisId === q.id && (e.type === 'retire' || e.type === 'empeche') && e.date >= q.date);
+      if (q.heure || retiree) await db.supprimer('ponctuelles', q.id);
+    }
+  }
   await recharger();
 }
 

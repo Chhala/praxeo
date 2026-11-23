@@ -45,6 +45,15 @@ export function messageDuJour(maintenant = new Date()) {
         texte: `Hier, ${sujet} à la trappe. Ne rate pas deux fois : aujourd'hui, on ${manques.length === 1 ? 'le' : 'les'} place en premier ?` };
     }
   }
+  // 2 bis. Hier validé avec un pilier laissé (joker, 23/11/2026) : pas deux fois de suite
+  if (jourHier && jourHier.niveau === 2 && jourHier.pilierLaisse) {
+    const p = d.praxisParId(jourHier.pilierLaisse);
+    const dejaFait = d.cache.events.some((e) => e.date === date && e.praxisId === jourHier.pilierLaisse && (e.type === 'fait' || e.type === 'minimum'));
+    if (p && !dejaFait) {
+      return { cle: 'messageDuJour', valeur: date,
+        texte: `Hier, « ${p.libelle} » a sauté : c'était ton joker. Pas deux fois de suite : aujourd'hui, il passe en premier.` };
+    }
+  }
   // 3. Une routine à jours fixes dont la séance précédente a sauté (la boxe du mardi, revue le lundi)
   if (!moteur.modeMinimum(date)) {
     const items = moteur.composer(maintenant).items.filter((t) => t.type === 'routine' && !t.faite);

@@ -100,6 +100,7 @@ Un moteur local, sans IA, compose ma journée (le programme que tu reçois dans 
 - Les piliers sont protégés en priorité ; chaque routine a une petite version, qui compte comme réussie.
 - Ne jamais rater deux fois : le lendemain d'un raté, ou à la séance qui suit une séance manquée (le contexte le signale : « séance précédente non faite »), dis-le à l'ouverture et propose au moins la petite version.
 - Série : une journée compte quand l'essentiel est fait (piliers et tâches essentielles). Un joker par semaine. Deux jours ratés d'affilée cassent toujours la série. En pause ou en mode minimum, la série est gelée ; en mode minimum, elle avance quand même les jours où l'essentiel est fait et où j'ajoute au moins 30 minutes d'autres praxis. Les jours en famille, les piliers en petite version suffisent, sauf si la barre a été relevée.
+- Joker de pilier : la journée est validée même si un seul pilier manque, à condition que ce pilier n'ait pas manqué la veille (jamais deux fois de suite). Le lendemain d'un joker, ce pilier passe en premier : rappelle-le à l'ouverture, une fois, sans reproche. Ne présente pas le joker comme une permission à l'avance.
 - Mode minimum (7 jours au plus) : seulement les piliers, en petite version, dans le programme que l'application propose. C'est un plancher, jamais un plafond : si je demande à faire davantage (« j'ai une heure devant moi », « propose-moi quelque chose »), tu proposes volontiers des tâches dues de la bibliothèque qui tiennent dans ce temps (voir « Des suggestions » ci-dessous), sans me rappeler le mode minimum ni me freiner. Ce que je fais en plus compte, la série reste gelée. C'est toi qui le déduis : si l'essentiel a été manqué au moins 3 des 5 derniers jours (le contexte le donne), ou si je dis que ça va mal, propose-le (Oui, Non), une fois, sans l'imposer. La sortie se fait par paliers, l'application s'en charge : 4 jours de remontée (piliers en entier, le reste en petit, pas de longue séance), puis le rythme habituel ; annonce-moi chaque palier quand le contexte ou la consigne locale le signale. Pendant ce mode, la série est gelée, sauf les jours où j'en fais nettement plus (l'essentiel et 30 minutes d'autres praxis) : n'en parle que si je le demande.
 - Si je dis « il faut que je… » ou « je dois… » pour aujourd'hui, c'est une obligation : ajoute-la tout de suite (ajouter_tache), sans demander, elle passe en premier. Si je dis « j'ai envie de… », c'est respecté, mais tu peux ajuster la durée pour garder de la place. Tu commentes une seule fois, brièvement, si ça déborde ou si quelque chose d'important passe à la trappe.
 - Ne pas faire n'est pas échouer : distingue « empêché » (imprévu, panne, malade : neutre) de « reporté par choix » (pas envie : la tâche reste due). Déduis-le de ce que je dis ; ne demande que si c'est vraiment ambigu. Si une même tâche est souvent reportée, propose de l'ajuster (plus courte, autre moment) au lieu d'insister.
@@ -248,7 +249,8 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
     const etatT = (t) => (t.faite ? (t.enMinimum ? 'fait en petite version' : 'fait') : 'pas fait');
     const autres = [...new Set(d.cache.events.filter((e) => e.date === cle && (e.type === 'fait' || e.type === 'minimum') && !ids.has(e.praxisId))
       .map((e) => d.praxisParId(e.praxisId)?.libelle || e.ponctuelle).filter(Boolean))];
-    const bilan = jj?.niveau === 2 ? 'l\'essentiel fait' : jj?.niveau === 1 ? 'en partie' : 'rien de validé';
+    const laisse = jj?.pilierLaisse && d.praxisParId(jj.pilierLaisse)?.libelle;
+    const bilan = jj?.niveau === 2 ? (laisse ? `l'essentiel fait, avec un joker (${laisse} laissé)` : 'l\'essentiel fait') : jj?.niveau === 1 ? 'en partie' : 'rien de validé';
     l.push(`- ${nom}${jj?.minimum ? ' (mode minimum)' : ''} : ${bilan}. Essentiel : ${essentiel.length ? essentiel.map((t) => `${t.libelle} ${etatT(t)}`).join(', ') : 'rien de prévu'}. Autres faits : ${autres.length ? autres.join(', ') : 'aucun'}.`);
   }
 
@@ -277,7 +279,18 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
   if (rdv && ouverture) l.push(maintenant.getDay() === 0
     ? 'Rendez-vous de la semaine : c\'est dimanche soir, ton message est uniquement la question de mes 2 ou 3 projets de la semaine.'
     : 'Rendez-vous de la semaine : les projets n\'ont pas été choisis dimanche ; ton message est uniquement cette question, posée une fois, sans insister ; si la consigne locale porte un rappel, c\'est le rappel qui passe, et la question attendra une autre ouverture.');
-  else if (rdv) l.push('Rendez-vous de la semaine : pas encore choisis, mais ne pose pas la question dans cette réponse ; réponds seulement à ce que je dis. Si je te donne mes projets, enregistre-les.');
+  // Coucher (pilier) d'hier pas validé : une question le matin, à l'ouverture (23/11/2026)
+  {
+    const hier = new Date(maintenant); hier.setDate(hier.getDate() - 1);
+    const cleHier = d.cleDate(hier), dowHier = d.jourSemaine(hier);
+    const coucher = d.cache.praxis.find((p) => p.section === 'piliers' && /COUCHER/.test(p.libelle.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase())
+      && (!p.jours || p.jours.map(Number).includes(dowHier)) && (!p.creeLe || p.creeLe <= cleHier));   // pas avant qu'il existe
+    const valide = coucher && d.cache.events.some((e) => e.date === cleHier && e.praxisId === coucher.id && (e.type === 'fait' || e.type === 'minimum'));
+    if (coucher && !valide && ouverture && !(rdv && ouverture) && maintenant.getHours() < 12) {
+      l.push(`Le coucher d'hier (pilier, id ${coucher.id}) n'est pas validé : demande-moi simplement si je me suis couché à l'heure (bulles Oui, Non). À mon Oui : valider_hier avec cet id. À mon Non : rien, sans reproche.`);
+    }
+  }
+  if (rdv && !ouverture) l.push('Rendez-vous de la semaine : pas encore choisis, mais ne pose pas la question dans cette réponse ; réponds seulement à ce que je dis. Si je te donne mes projets, enregistre-les.');
 
   l.push('', 'Bibliothèque des praxis :');
   for (const p of d.cache.praxis) {
