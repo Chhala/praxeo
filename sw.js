@@ -4,7 +4,7 @@
 // « Dernière version » au sens strict : on contourne le cache HTTP du navigateur (GitHub Pages le garde 10 minutes),
 // sinon une mise à jour publiée pouvait mettre jusqu'à 10 minutes à arriver sur l'iPhone (21/11/2026).
 
-const VERSION = 'praxeo-v2-074';
+const VERSION = 'praxeo-v2-075';
 const COQUILLE = [
   './',
   './index.html',

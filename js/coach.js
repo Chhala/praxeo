@@ -26,7 +26,7 @@ const VALEURS = { motif: ['choix', 'empeche'], jour: ['aujourdhui', 'hier'], cha
 // pour l'API. L'application traduit ensuite chaque action vers ses champs propres (versAction).
 const TYPES_ACTION = ['ajouter_tache', 'ajouter_au_programme', 'reporter', 'retirer_du_jour', 'valider_hier', 'annuler_validation',
   'ajouter_note', 'retirer_note', 'note_rappelee', 'arreter_rappel', 'modifier_praxis', 'mode_minimum', 'pause', 'statut',
-  'minuteur', 'commencer', 'deplacer', 'projets_semaine', 'barre_famille'];
+  'minuteur', 'commencer', 'deplacer', 'projets_semaine', 'barre_famille', 'creer_fiche'];
 const ACTION = {
   type: 'object', additionalProperties: false,
   required: ['type', 'id', 'texte', 'champ', 'heure', 'date', 'nombre', 'oui', 'liste'],
@@ -71,6 +71,7 @@ export function versAction(x = {}) {
     case 'deplacer': return { type: t, id: x.id, heure: x.heure };
     case 'projets_semaine': return { type: t, praxisIds: x.liste || [] };
     case 'barre_famille': return { type: t, niveau: x.texte };
+    case 'creer_fiche': return { type: t, libelle: x.texte, duree: x.nombre, oui: !!x.oui };
     default: return { type: t, id: x.id };
   }
 }
@@ -136,7 +137,7 @@ Chaque action a toujours les mêmes champs : type, id, texte, champ, heure, date
 - ajouter_note : texte, id = praxisId (ou ""), oui = rappel ; retirer_note, note_rappelee, arreter_rappel : id = noteId
 - modifier_praxis : id = praxisId, champ (duree, heure, frequence, importance, moment, lieu, minimum ou description), texte = valeur
 - mode_minimum : oui = actif ; pause : date = jusqu'au ; statut : texte = Maison, Dehors, Travail, En famille ou Auto, heure = jusqu'à
-- minuteur : nombre = minutes ; commencer : id, heure ; deplacer : id, heure ; projets_semaine : liste = identifiants ; barre_famille : texte = minimum ou normale
+- minuteur : nombre = minutes ; commencer : id, heure ; deplacer : id, heure ; projets_semaine : liste = identifiants ; barre_famille : texte = minimum ou normale ; creer_fiche : texte = nom, nombre = durée en minutes, oui = vrai (Oui) ou faux (Non)
 Ci-dessous, les actions sont décrites avec leurs noms de sens (libellé, durée, praxisId, motif…) : place-les dans ces champs.
 - message : ce que tu me dis.
 - surbrillance : les mots exacts de ton message à mettre en valeur (éléments du bloc-notes cités, heure de fin, durée importante). Deux ou trois au plus, souvent aucun.
@@ -151,7 +152,8 @@ Ci-dessous, les actions sont décrites avec leurs noms de sens (libellé, durée
   - ajouter_note : une idée ou une chose à faire un autre jour. Une idée pour une praxis (« idée pour l'appli », « pour Magie ») : praxisId de cette praxis et rappel vrai, elle me sera rappelée au début de la prochaine séance. Une chose pour un autre jour : praxisId "", rappel vrai. Les idées vont dans le bloc-notes, jamais dans la mémoire.
   - retirer_note, note_rappelee, arreter_rappel.
   - modifier_praxis : seulement après mon accord explicite. duree et frequence en nombre de jours ou minutes (« 25 »), heure au format « 18h30 », importance : essentielle, utile ou bonus.
-  - deplacer : changer l'heure d'une tâche du programme, pour aujourd'hui seulement (« mets Mouvement après le cinéma », « le sol à 17h ») : son id et la nouvelle heure (« 18h15 »), calculée d'après le programme et le contexte (la fin du cinéma, d'une absence, d'un rendez-vous). Pour tous les jours : modifier_praxis heure, après mon accord. Si je demande deux choses (« déplace Mouvement et je commence le rangement »), fais les deux actions.
+  - deplacer : changer l'heure d'une tâche du programme, pour aujourd'hui seulement (« mets Mouvement après le cinéma », « le sol à 17h ») : son id et la nouvelle heure (« 18h15 »), calculée d'après le programme et le contexte (la fin du cinéma, d'une absence, d'un rendez-vous). Pour tous les jours : modifier_praxis heure, après mon accord. Si je demande deux choses (« déplace Mouvement et je commence le rangement »), fais les deux actions. Jamais à l'heure du coucher ni après : rien ne se place après le coucher, pas même le dîner ; si une absence couvre le dîner, il se prend avant (le moteur l'avance) ou pendant, dis-le en une phrase. Une séance à heure fixe recouverte par l'absence (la boxe de 18h30 sous un club de 19h) saute ce jour-là : dis-le, ne dis pas qu'elle se replace.
+  - creer_fiche : quand je redemande une tâche que le contexte range parmi les « tâches demandées plusieurs fois sans fiche », ajoute-la comme d'habitude, puis demande une fois, dans le même message, si je veux lui créer une fiche (bulles Oui, Non). À mon Oui : creer_fiche avec texte = son nom, nombre = sa durée, oui vrai ; la fiche se crée dans Praxis > Tâches, je la compléterai. À mon Non : creer_fiche avec oui faux, on n'en reparle pas avant un mois.
   - commencer : quand je dis que j'ai commencé une tâche (« j'ai commencé le rangement il y a 45 minutes »), son id et l'heure de début (« 14h15 », calculée depuis l'heure du contexte). Une tâche « commencé à …, en cours » ne se redonne jamais comme à commencer : parle du temps qu'il reste.
   - mode_minimum, pause (jusquau au format AAAA-MM-JJ ; "" pour reprendre), statut (« je suis dehors » ; jusqua au format « 19h00 », ou "" pour la journée ; Auto pour revenir au statut déduit), minuteur (en minutes, quand je l'accepte), projets_semaine (identifiants des praxis choisies dimanche), barre_famille (quand j'accepte de relever ou de redescendre la barre des jours en famille).
 - memoire : ce que tu retiens durablement de moi, en phrases courtes à la première personne, comme si je les écrivais (« Je fais mes courses au travail, en fin de service, 20 minutes au plus. »). Thèmes : Planning, Préférences, Habitudes, Forme.
@@ -294,6 +296,11 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
     if (coucher && !valide && ouverture && !(rdv && ouverture) && maintenant.getHours() < 12) {
       l.push(`Le coucher d'hier (pilier, id ${coucher.id}) n'est pas validé : demande-moi simplement si je me suis couché à l'heure (bulles Oui, Non). À mon Oui : valider_hier avec cet id. À mon Non : rien, sans reproche.`);
     }
+  }
+  // Ce que je redemande souvent sans fiche (24/11/2026)
+  {
+    const rep = d.demandesRepetees(maintenant);
+    if (rep.length) l.push(`Tâches demandées plusieurs fois sans fiche dans la bibliothèque : ${rep.map((x) => `${x.libelle} (${x.jours} jours sur les 3 dernières semaines)`).join(', ')}.`);
   }
   if (rdv && !ouverture) l.push('Rendez-vous de la semaine : pas encore choisis, mais ne pose pas la question dans cette réponse ; réponds seulement à ce que je dis. Si je te donne mes projets, enregistre-les.');
 
@@ -471,6 +478,28 @@ export async function appliquer(json, dit = '') {
           if (pourMaintenant) { const ev = await d.noter('commence', q.id, { heure: a.heure }); defaire.push(() => d.supprimerEvenement(ev.id)); }
           defaire.push(() => d.supprimerPonctuelle(q.id));
           resume.push(q.date === auj ? `${q.libelle} ajoutée` : `${q.libelle} prévue le ${dateCourte(q.date)}`);
+          break;
+        }
+        case 'creer_fiche': {
+          const nom = String(a.libelle || '').trim();
+          if (!nom) break;
+          const cle = nom.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+          const memeNom = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim() === cle;
+          if (!a.oui) {
+            const avant = d.cache.meta.ficheRefusee || {};
+            await d.ecrireMeta('ficheRefusee', { ...avant, [cle]: auj });
+            defaire.push(() => d.ecrireMeta('ficheRefusee', avant));
+            break;
+          }
+          if (d.cache.praxis.some((p) => memeNom(p.libelle))) break;
+          const liees = d.cache.ponctuelles.filter((q) => !q.praxisId && memeNom(q.libelle));
+          const derniere = liees[liees.length - 1];
+          const p = { id: `p_${Date.now()}`, libelle: nom, section: 'taches', duree: Math.max(5, a.duree || derniere?.duree || 20), frequence: 7,
+            importance: 'utile', lieu: 'Maison', couleur: derniere?.couleur || d.couleurLibre(), origine: 'coach' };
+          await d.enregistrerPraxis(p);
+          for (const q of liees) await d.enregistrerPonctuelle({ ...q, praxisId: p.id });
+          defaire.push(async () => { for (const q of liees) await d.enregistrerPonctuelle(q); await d.supprimerPraxis(p.id); });
+          resume.push(`Fiche ${nom} créée dans Praxis, Tâches`);
           break;
         }
         case 'ajouter_au_programme': if (existe(a.praxisId)) { const ev = await d.noter('ajoute', a.praxisId); defaire.push(() => d.supprimerEvenement(ev.id)); } break;

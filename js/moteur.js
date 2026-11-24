@@ -321,9 +321,9 @@ export function composer(maintenant = new Date()) {
   // préférences de moment (21/11/2026) : « milieu de matinée » d'abord (le sol), « soir » après le dîner (la série)
   const normales = flexibles.filter((f) => !reportes.has(f.id));
   const aPlacer = [...normales.filter((f) => f.prefere === 'matin'), ...normales.filter((f) => !f.prefere), ...reportees.filter((f) => f.prefere !== 'soir'), ...flexibles.filter((f) => f.prefere === 'soir')];
-  const finDiner = (() => { const r = fixes.find((x) => x.id === 'repas_diner'); return r ? r.heure + r.duree : 0; })();
   const placees = [];
   const fixesTries = fixes.slice().sort((a, b) => a.heure - b.heure || (a.rattrapage ? -1 : 0));
+  for (const f of fixesTries) f.heureVoulue = f.heure;
   // chaque bloc commence après la fin la plus tardive de ceux d'avant (pas seulement du précédent : un bloc gardé
   // à son heure au milieu du dîner ne doit pas faire remonter la lecture dans le dîner, 22/11/2026)
   let finMax = fixesTries.length ? fixesTries[0].heure + fixesTries[0].duree : 0;
@@ -342,6 +342,35 @@ export function composer(maintenant = new Date()) {
     }
     finMax = Math.max(finMax, f.heure + f.duree);
   }
+  // Rien après l'heure du coucher (24/11/2026 : club de lecture de 19h à 22h, le dîner repoussé à 22h00 sur le coucher,
+  // la lecture à 23h00). Un bloc repoussé jusque-là remonte dans le dernier créneau libre avant le bloc qui l'a chassé ;
+  // sans créneau, il sort du programme (le dîner se prend pendant l'absence ; un pilier compte encore dans l'essentiel)
+  {
+    const coucher = fixesTries.find((x) => /COUCHER/.test(normaliser(x.libelle || '')));
+    const limite = coucher ? coucher.heure : finJournee + 30;
+    const libre = (s, f) => !fixesTries.some((x) => x !== f && !x.sorti && x.heure < s + f.duree && x.heure + x.duree > s);
+    // et un bloc recouvert par une absence ou une tâche gardée à son heure (la boxe de 18h30 sous le club de lecture) :
+    // une séance à heure fixe qui n'est pas un pilier sort du programme, le reste remonte avant
+    // (à son heure prévue : la boucle d'avant a pu la pousser après l'absence)
+    const recouvert = (x) => [x.heure, x.heureVoulue].some((h) => fixesTries.some((g) => g !== x && (g.fixe || g.enCours) && g.heure < h + x.duree && g.heure + g.duree > h));
+    for (const f of fixesTries.filter((x) => x !== coucher && !x.enCours && !x.fixe && !etat(x.id).faite
+      && ((x.heure !== x.heureVoulue && x.heure + x.duree > limite) || recouvert(x)))) {
+      if (f.type === 'routine' && !f.pilier && !f.rattrapage && recouvert(f)) { f.sorti = true; continue; }
+      // pas avant 17h30 pour le dîner, midi pour le reste ; l'heure peut être déjà passée (le dîner en cours reste affiché)
+      const plancher = f.type === 'repas' ? m('17h30') : m('12h00');
+      let s = Math.min(f.heureVoulue, limite) - f.duree;
+      s -= s % 5;
+      for (let n = 0; n < 40 && s >= plancher; n++) {
+        const g = fixesTries.find((x) => x !== f && !x.sorti && x.heure < s + f.duree && x.heure + x.duree > s);
+        if (!g) break;
+        s = g.heure - f.duree; s -= ((s % 5) + 5) % 5;
+      }
+      if (s >= plancher && libre(s, f)) f.heure = s;
+      else f.sorti = true;
+    }
+    for (let i = fixesTries.length - 1; i >= 0; i--) if (fixesTries[i].sorti) fixesTries.splice(i, 1);
+  }
+  const finDiner = (() => { const r = fixesTries.find((x) => x.id === 'repas_diner'); return r ? r.heure + r.duree : 0; })();
   fixesTries.sort((a, b) => a.heure - b.heure);   // l'ordre a pu changer : le placement suit les heures réelles
   let curseur = cinq(Math.max(now, debutApresMidi));   // on ne place rien dans le passé, et à l'heure ronde
   let effort = 0;

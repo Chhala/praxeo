@@ -185,7 +185,7 @@ export function derniereFois(praxisId) {
 // Palette des praxis (la même que la fiche) : une tâche ajoutée sans couleur prend la moins portée du moment
 // (22/11/2026 : toutes les tâches ajoutées par Kairos étaient brunes)
 export const PALETTE = ['#005A92', '#5D1935', '#D4AF37', '#E2953B', '#6E7A68', '#A66E4E', '#3B596A', '#1A1A18'];
-function couleurLibre() {
+export function couleurLibre() {
   const n = new Map(PALETTE.map((c) => [c, 0]));
   for (const q of cache.ponctuelles) if (n.has(q.couleur)) n.set(q.couleur, n.get(q.couleur) + 1);
   const moins = Math.min(...n.values());
@@ -199,7 +199,37 @@ export async function ajouterPonctuelle(q) {
   const objet = { id: `q_${n}`, date: aujourdhui(), duree: 20, ...q, couleur: q.couleur || couleurLibre() };
   cache.ponctuelles.push(objet);
   await db.ecrire('ponctuelles', objet);
+  // la trace des demandes, pour proposer une fiche à ce qui revient (24/11/2026 : Mouvement, demandé plusieurs fois)
+  if (!objet.praxisId) {
+    const limite = new Date(); limite.setDate(limite.getDate() - 60);
+    const garde = (cache.meta.demandesPonctuelles || []).filter((x) => x.date >= cleDate(limite));
+    await ecrireMeta('demandesPonctuelles', [...garde, { libelle: objet.libelle, date: objet.date }]);
+  }
   return objet;
+}
+
+// Tâches « une fois » demandées au moins deux jours différents ces 3 dernières semaines, sans fiche dans la bibliothèque
+// (et pas refusées ce mois-ci) : Kairos propose de leur créer une fiche
+export function demandesRepetees(maintenant = new Date()) {
+  const debut = new Date(maintenant); debut.setDate(debut.getDate() - 21);
+  const cleDebut = cleDate(debut);
+  const refus = cache.meta.ficheRefusee || {};
+  const ilYa30 = new Date(maintenant); ilYa30.setDate(ilYa30.getDate() - 30);
+  const fiches = new Set(cache.praxis.map((p) => normaliser(p.libelle)));
+  const traces = [
+    ...(cache.meta.demandesPonctuelles || []),
+    ...cache.ponctuelles.filter((q) => !q.praxisId).map((q) => ({ libelle: q.libelle, date: q.date })),
+    ...cache.events.filter((e) => e.ponctuelle && String(e.praxisId || '').startsWith('q_')).map((e) => ({ libelle: e.ponctuelle, date: e.date })),
+  ];
+  const parNom = new Map();
+  for (const t of traces) {
+    if (!t.libelle || !t.date || t.date < cleDebut) continue;
+    const n = normaliser(t.libelle);
+    if (fiches.has(n) || (refus[n] && refus[n] >= cleDate(ilYa30))) continue;
+    if (!parNom.has(n)) parNom.set(n, { libelle: t.libelle, jours: new Set() });
+    parNom.get(n).jours.add(t.date);
+  }
+  return [...parNom.values()].filter((x) => x.jours.size >= 2).map((x) => ({ libelle: x.libelle, jours: x.jours.size }));
 }
 // Faite : elle disparaît, en ne laissant qu'une trace dans le journal (date, durée)
 export async function terminerPonctuelle(id) {
