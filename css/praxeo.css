@@ -525,3 +525,28 @@ textarea.fiche-description { width: 100%; max-width: none; text-align: left; res
 
 /* Durée prévue après chaque bulle du programme, plus petite que l'heure : pour juger les temps proposés (21/11/2026) */
 .tache .duree { font-size: 12px; color: var(--texte-2); opacity: .8; flex-shrink: 0; white-space: nowrap; }
+
+/* ── Seuil : un toucher avant l'accueil, pour le son (24/11/2026) ── */
+.seuil {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  padding: calc(var(--haut-sur) + 24px) 32px calc(env(safe-area-inset-bottom, 0px) + 40px);
+  background: var(--fond); color: var(--texte); text-align: center;
+  transition: opacity .35s ease;
+  -webkit-user-select: none; user-select: none; cursor: pointer;
+}
+.seuil[hidden] { display: none; }
+.seuil.part { opacity: 0; pointer-events: none; }
+.seuil-titre { font-family: var(--cinzel); font-weight: 500; font-size: 30px; letter-spacing: .25em; padding-left: .25em; }
+.seuil-date { font-family: var(--marcellus); font-size: 17px; color: var(--texte-2); }
+.seuil-date::first-letter { text-transform: uppercase; }
+.seuil-maxime { margin: 22px 0 0; max-width: 320px; font-family: var(--marcellus); font-size: 16px; line-height: 1.5; color: var(--texte-2); }
+.seuil-maxime:empty { display: none; }
+.seuil-maxime cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--pointilles); letter-spacing: .04em; }
+.seuil-appel {
+  position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 48px); left: 0; right: 0;
+  font-family: var(--cinzel); font-size: 13px; letter-spacing: .18em; text-transform: uppercase; color: var(--egee);
+  animation: seuil-souffle 2.4s ease-in-out infinite;
+}
+@keyframes seuil-souffle { 0%, 100% { opacity: .65; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .seuil-appel { animation: none; } .seuil { transition: none; } }

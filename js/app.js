@@ -388,7 +388,6 @@ const coach = {
       if (this.mode === 'saisie' && this.texteSaisi()) this.envoyer();
       else this.ecouter();
     });
-    if (!coachIA.doitParlerALouverture()) this.afficher(consigne());
   },
 
   texteSaisi() { return this.el.textContent.trim(); },
@@ -715,6 +714,35 @@ function menuTache(id) {
   }));
 }
 
+// ═══ Seuil ══════════════════════════════════════
+// Un toucher avant que Kairos parle : l'iPhone n'autorise le son qu'après un geste, et le premier message s'écrivait en silence
+// (24/11/2026). Seulement si le bruit du crayon est activé ; le micro reste demandé au moment de dicter.
+function seuil(ensuite) {
+  const el = $('#seuil');
+  if (!el || !donnees.reglage('bruitFrappe') || (audio && audio.state === 'running')) { ensuite(); return; }
+  if (!el.hidden) { el._ensuite = ensuite; return; }   // déjà affiché : on garde la dernière suite
+  const x = new Date();
+  $('#seuil-date').textContent = x.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const q = $('#seuil-maxime');
+  if (donnees.reglage('maximes') && maximes.length) {
+    // pas celles qui n'ont de sens qu'en cours de journée (« Plus que deux », « Pause sans écran »)
+    const choix = maximes.filter(([t]) => !/^(Plus que|Pause)/.test(t));
+    const [texte, auteur] = choix[Math.floor(Math.random() * choix.length)];
+    q.innerHTML = `« ${echapper(texte)} »<cite>${echapper(auteur)}</cite>`;
+  } else q.textContent = '';
+  el._ensuite = ensuite;
+  el.classList.remove('part');
+  el.hidden = false;
+  const entrer = () => {
+    el.removeEventListener('click', entrer);
+    el.classList.add('part');
+    setTimeout(() => { el.hidden = true; el.classList.remove('part'); }, 350);
+    const suite = el._ensuite; el._ensuite = null;
+    if (suite) setTimeout(suite, 120);   // le son est déverrouillé par ce même toucher (écouteur en capture sur le document)
+  };
+  el.addEventListener('click', entrer);
+}
+
 // ═══ Démarrage ═════════════════════════════════
 async function init() {
   try {
@@ -745,12 +773,13 @@ async function init() {
   rendreProgramme();
   rendreLignes();
   coach.init();
-  if (coachIA.doitParlerALouverture()) coach.parler(null);
+  // à chaque ouverture : le premier texte (Kairos ou la consigne) s'écrit après le seuil, avec le son
+  seuil(() => { if (coachIA.doitParlerALouverture()) coach.parler(null); else coach.afficher(consigne()); });
   // De retour sur l'appli (iOS la garde en mémoire) : le coach reparle s'il ne l'a pas fait depuis une heure
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     rafraichir({ garderMessage: true });
-    if (etat.page === 'accueil' && coach.mode === 'coach' && !coach.flux && coachIA.doitParlerALouverture()) coach.parler(null);
+    if (etat.page === 'accueil' && coach.mode === 'coach' && !coach.flux && coachIA.doitParlerALouverture()) seuil(() => coach.parler(null));
   });
   // File d'attente (§9.1) : ce que j'ai dit sans réseau part dès qu'il revient
   window.addEventListener('online', async () => {
