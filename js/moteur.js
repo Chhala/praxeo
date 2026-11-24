@@ -192,7 +192,10 @@ export function composer(maintenant = new Date()) {
   if (douche && !doucheFaite && matinales.length) items.push({ id: 'reserve_douche', heure: versHeure(lever), libelle: 'Douche', duree: douche, type: 'reserve', faite: faits.has('reserve_douche') || now > lever + douche });
 
   // ── 2. La journée et le soir ──
-  const debutApresMidi = { journee: m('18h00'), matin: m('13h30'), aucun: m('9h00') }[j.travail] ?? m('18h00');
+  let debutApresMidi = { journee: m('18h00'), matin: m('13h30'), aucun: m('9h00') }[j.travail] ?? m('18h00');
+  // « Je ne travaille pas cet après-midi » (statut Maison choisi, 24/11/2026) : la journée s'ouvre dès maintenant
+  const choisi = d.cache.meta.statutManuel;
+  if (choisi && choisi.date === date && ['Maison', 'En famille'].includes(choisi.valeur) && now < m(choisi.jusqua || '23h59')) debutApresMidi = Math.min(debutApresMidi, cinq(now));
   const finJournee = m(REGLES.retourAuCalme);
   const famille = (min) => enFamilleA(j, min);
 
@@ -353,9 +356,11 @@ export function composer(maintenant = new Date()) {
     // une séance à heure fixe qui n'est pas un pilier sort du programme, le reste remonte avant
     // (à son heure prévue : la boucle d'avant a pu la pousser après l'absence)
     const recouvert = (x) => [x.heure, x.heureVoulue].some((h) => fixesTries.some((g) => g !== x && (g.fixe || g.enCours) && g.heure < h + x.duree && g.heure + g.duree > h));
-    for (const f of fixesTries.filter((x) => x !== coucher && !x.enCours && !x.fixe && !etat(x.id).faite
-      && ((x.heure !== x.heureVoulue && x.heure + x.duree > limite) || recouvert(x)))) {
-      if (f.type === 'routine' && !f.pilier && !f.rattrapage && recouvert(f)) { f.sorti = true; continue; }
+    // seulement une séance qui se fait ailleurs (la boxe au gymnase) : à la maison, elle passe après (Mouvement après le cinéma)
+    const ailleurs = (x) => { const lieu = (d.praxisParId(x.id)?.lieu || '').toLowerCase(); return !!lieu && !['maison', 'partout'].includes(lieu); };
+    for (const f of fixesTries.filter((x) => x !== coucher && !x.enCours && !x.fixe && !etat(x.id).faite)) {
+      if (f.type === 'routine' && !f.pilier && !f.rattrapage && ailleurs(f) && recouvert(f)) { f.sorti = true; continue; }
+      if (!(f.heure !== f.heureVoulue && f.heure + f.duree > limite)) continue;
       // pas avant 17h30 pour le dîner, midi pour le reste ; l'heure peut être déjà passée (le dîner en cours reste affiché)
       const plancher = f.type === 'repas' ? m('17h30') : m('12h00');
       let s = Math.min(f.heureVoulue, limite) - f.duree;

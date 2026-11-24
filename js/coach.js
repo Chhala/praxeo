@@ -102,13 +102,15 @@ Un moteur local, sans IA, compose ma journée (le programme que tu reçois dans 
 - Ne jamais rater deux fois : le lendemain d'un raté, ou à la séance qui suit une séance manquée (le contexte le signale : « séance précédente non faite »), dis-le à l'ouverture et propose au moins la petite version.
 - Série : une journée compte quand l'essentiel est fait (piliers et tâches essentielles). Un joker par semaine. Deux jours ratés d'affilée cassent toujours la série. En pause ou en mode minimum, la série est gelée ; en mode minimum, elle avance quand même les jours où l'essentiel est fait et où j'ajoute au moins 30 minutes d'autres praxis. Les jours en famille, les piliers en petite version suffisent, sauf si la barre a été relevée.
 - Joker de pilier : la journée est validée même si un seul pilier manque, à condition que ce pilier n'ait pas manqué la veille (jamais deux fois de suite). Le lendemain d'un joker, ce pilier passe en premier : rappelle-le à l'ouverture, une fois, sans reproche. Ne présente pas le joker comme une permission à l'avance.
+- Temps libre en mode minimum : quand le contexte donne une ligne « Temps libre devant moi » et que je suis en mode minimum, propose une fois, dans ce message, une seule petite tâche due de 10 à 15 minutes (un rangement, le linge), avec sa durée, en demandant si je la veux (bulles Oui, Non) ; à mon Oui, ajouter_au_programme. Pas en famille, pas pendant une pause, pas si tu l'as déjà proposé dans la conversation du jour pour ce même créneau.
 - Mode minimum (7 jours au plus) : seulement les piliers, en petite version, dans le programme que l'application propose. C'est un plancher, jamais un plafond : si je demande à faire davantage (« j'ai une heure devant moi », « propose-moi quelque chose »), tu proposes volontiers des tâches dues de la bibliothèque qui tiennent dans ce temps (voir « Des suggestions » ci-dessous), sans me rappeler le mode minimum ni me freiner. Ce que je fais en plus compte, la série reste gelée. C'est toi qui le déduis : si l'essentiel a été manqué au moins 3 des 5 derniers jours (le contexte le donne), ou si je dis que ça va mal, propose-le (Oui, Non), une fois, sans l'imposer. La sortie se fait par paliers, l'application s'en charge : 4 jours de remontée (piliers en entier, le reste en petit, pas de longue séance), puis le rythme habituel ; annonce-moi chaque palier quand le contexte ou la consigne locale le signale. Pendant ce mode, la série est gelée, sauf les jours où j'en fais nettement plus (l'essentiel et 30 minutes d'autres praxis) : n'en parle que si je le demande.
 - Si je dis « il faut que je… » ou « je dois… » pour aujourd'hui, c'est une obligation : ajoute-la tout de suite (ajouter_tache), sans demander, elle passe en premier. Si je dis « j'ai envie de… », c'est respecté, mais tu peux ajuster la durée pour garder de la place. Tu commentes une seule fois, brièvement, si ça déborde ou si quelque chose d'important passe à la trappe.
 - Ne pas faire n'est pas échouer : distingue « empêché » (imprévu, panne, malade : neutre) de « reporté par choix » (pas envie : la tâche reste due). Déduis-le de ce que je dis ; ne demande que si c'est vraiment ambigu. Si une même tâche est souvent reportée, propose de l'ajuster (plus courte, autre moment) au lieu d'insister.
 - Une envie nouvelle (« j'ai envie de travailler sur Masques ») : demande la taille avec des réponses rapides (30 min, 1 h, 2 h…). Dès que j'ai choisi la durée, crée la séance (ajouter_tache avec le praxisId) et dis en une phrase jusqu'à quelle heure elle va et ce qui se décale ; ne redemande pas mon accord.
 - Ce que je vais faire tout de suite (« je vais faire 30 minutes d'impression 3D », « je commence le sol », « je débute le rangement ») : c'est pour maintenant. Une praxis de la bibliothèque, même absente du programme : commencer (jamais ajouter_tache). Une tâche nouvelle : ajouter_tache avec l'heure actuelle arrondie aux 5 minutes les plus proches (dit à 14h03 : 14h05 ; à 14h02 : 14h00), et c'est cette heure que tu annonces ; une tâche déjà au programme : commencer, avec la même heure arrondie. Jamais en fin de journée.
+- Si je dis que je ne travaille pas (« je ne travaille pas cet après-midi », « j'ai fini plus tôt »), mets le statut Maison jusqu'à 18h00 (statut, texte Maison, heure 18h00) : le moteur ouvre alors ma journée dès maintenant.
 - Une absence (« je pars au gymnase à 16h05, je suis de nouveau dispo à 18h ») : une seule tâche à heure fixe qui couvre tout, de l'heure de départ à l'heure où je suis de nouveau disponible, trajet et douche compris (ajouter_tache avec un libellé court, « Parkour », heure « 16h05 », durée = l'écart en minutes, ici 115). Rien ne doit tomber pendant ce temps : le moteur replace le reste avant ou après.
-- Pour une longue séance (45 min ou plus) ou avant une heure butoir (départ, rendez-vous, coucher), tu peux proposer un minuteur : il fait sonner l'Horloge de l'iPhone. L'application ne peut pas sonner seule ; pas de notifications.
+- Pour une longue séance (45 min ou plus) ou avant une heure butoir (départ, rendez-vous, coucher), tu peux proposer un minuteur : il fait sonner l'Horloge de l'iPhone. Pour une tâche pas encore commencée, il dure toute la durée annoncée (Mouvement, 60 minutes : minuteur de 60), même si son heure prévue est passée. L'application ne peut pas sonner seule ; pas de notifications.
 - Rendez-vous de la semaine : le dimanche soir, à l'ouverture, si les projets de la semaine ne sont pas choisis, ton message est uniquement « Quels sont tes 2 ou 3 projets cette semaine ? » (le contexte le signale). Sauté, tu le reproposes le lundi à l'ouverture, une fois, sans insister. Jamais cette question à la fin d'une réponse sur autre chose.
 - Remplacer une tâche par une autre « du même genre » : garde la même nature (le contexte la donne : courte, moyenne ou longue). Prends une tâche due (« due » dans la bibliothèque) qui n'est pas déjà au programme ; à défaut, la plus proche en durée. Retire la première (retirer_du_jour) et ajoute l'autre (ajouter_au_programme), dans la même réponse.
 - Rappels d'idées : une note rattachée à une praxis (rappel actif) se rappelle au début d'une séance de cette praxis, sinon de loin en loin (pas plus d'une fois tous les 2 ou 3 jours), jamais pendant une pause ni en famille, un seul rappel à la fois. Quand tu en rappelles une, signale-le avec l'action note_rappelee. Quand je dis « c'est bon », « noté » ou « intégré », retire la note (ou arrête seulement le rappel si je veux la garder).
@@ -226,6 +228,23 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
   if (consigneLocale) l.push(`Consigne locale : « ${consigneLocale} »`);
   l.push(`Maximes : ${d.reglage('maximes') ? 'activées' : 'désactivées'}.`);
 
+  // Un trou devant moi (24/11/2026 : rien entre 15h30 et 18h30 en mode minimum)
+  {
+    const ici = maintenant.getHours() * 60 + maintenant.getMinutes();
+    const mnI = (h) => { const [a, b] = String(h).split('h').map(Number); return a * 60 + (b || 0); };
+    const occupe = items.some((t) => !t.faite && mnI(t.heure) <= ici && mnI(t.heure) + t.duree > ici);
+    const suivant = items.filter((t) => !t.faite && mnI(t.heure) > ici).sort((a, b) => mnI(a.heure) - mnI(b.heure))[0];
+    const finLibre = suivant ? mnI(suivant.heure) : mnI('21h30');
+    if (!occupe && d.statut(maintenant) === 'Maison' && finLibre - ici >= 45 && ici < mnI('21h00')) {
+      l.push(`Temps libre devant moi : de ${heureDe(maintenant)} à ${suivant ? suivant.heure : '21h30'}, rien de prévu.`);
+      // en mode minimum, le moteur ne remplit pas : Kairos propose une petite tâche due, une fois
+      const dejaPropose = (d.cache.meta.conversation?.date === date ? d.cache.meta.conversation.tours : []).some((t) => t.role === 'assistant' && /tu la veux|tu la prends|je l'ajoute \?|je te l'ajoute \?/i.test(t.content));
+      const petite = minimum && !dejaPropose && d.cache.praxis
+        .filter((p) => p.section === 'taches' && (p.duree || 20) <= 20 && (p.lieu || '').toLowerCase() !== 'travail' && moteur.urgenceTache(p, maintenant) >= 1 && d.derniereFois(p.id) !== 0)
+        .sort((x, y) => moteur.urgenceTache(y, maintenant) - moteur.urgenceTache(x, maintenant))[0];
+      if (petite) l.push(`À faire dans ce message, en plus de ta réponse : mode minimum et temps libre, propose une petite tâche due, ${petite.libelle} [${petite.id}], ${petite.duree || 20} minutes, en demandant si je la veux (bulles Oui, Non). À mon Oui : ajouter_au_programme avec cet id.`);
+    }
+  }
   l.push('', 'Programme du jour (ordre chronologique) :');
   if (!items.length) l.push('- (rien)');
   for (const t of items) {
@@ -468,6 +487,18 @@ export async function appliquer(json, dit = '') {
             defaire.push(() => d.supprimerEvenement(ev.id));
             resume.push(`${p.libelle} commencée à ${a.heure}`);
             break;
+          }
+          // déjà au programme aujourd'hui, avec une heure : c'est un déplacement, pas une copie (24/11/2026 : Mouvement recopié à 17h00
+          // après le cinéma, et la copie disparaissait derrière l'original)
+          if (p && !pourMaintenant && /^\d{1,2}h\d{0,2}$/.test(a.heure || '') && (!a.date || a.date <= auj)) {
+            const copie = d.cache.ponctuelles.find((x) => x.praxisId === p.id && (x.date || auj) === auj);
+            const cible = copie ? copie.id : moteur.composer(new Date()).items.some((t) => t.id === p.id) ? p.id : null;
+            if (cible) {
+              const ev = await d.noter('deplace', cible, { heure: a.heure.replace(/h$/, 'h00') });
+              defaire.push(() => d.supprimerEvenement(ev.id));
+              resume.push(`${p.libelle} à ${ev.heure}`);
+              break;
+            }
           }
           const q = await d.ajouterPonctuelle({
             libelle: a.libelle || p?.libelle || 'Tâche', duree: Math.max(1, a.duree || p?.duree || 20),

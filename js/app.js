@@ -308,6 +308,8 @@ function minuteurPropose() {
   const fin = t.butoir ? enMinutes(t.butoir.heure) : debut + t.duree;
   const d = new Date();
   const maintenant = d.getHours() * 60 + d.getMinutes();
+  // pas encore commencée : toute sa durée, même en retard sur l'heure prévue (24/11/2026 : Mouvement, 60 minutes, minuteur de 16)
+  if (!t.butoir) return t.duree;
   return maintenant > debut && maintenant < fin ? fin - maintenant : fin - debut;
 }
 
