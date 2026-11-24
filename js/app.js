@@ -53,10 +53,13 @@ function retablirSortie() {
 // Il tourne en boucle à partir d'un point pris au hasard, tant que les lettres arrivent, puis s'éteint en douceur.
 let plumeSon = null, plumeChargement = null, plumeEnCours = null, plumeArret = null;
 // Volume réglable dans Réglages > Affichage et son (22/11/2026). Échelle décalée le même jour : l'ancien minimum (0,05)
-// devient le milieu ; chaque cran de 5 vaut environ 2,4 dB, de 0,0125 (curseur à 0) à 0,2 (curseur à 100)
+// devient le milieu ; chaque cran de 5 vaut environ 2,4 dB.
+// Remonté ×5 le 24/11/2026 : les baisses du 22/11 avaient été réglées pendant que l'iPhone restait dans le mode
+// « micro + haut-parleur » (bien plus fort) ; depuis la 2.070, la sortie redevient normale et le crayon ne s'entendait
+// plus qu'au maximum. De 0,0625 (curseur à 0) à 1 (curseur à 100), 0,25 au milieu.
 const gainPlume = () => {
   const v = Math.min(100, Math.max(0, Number(donnees.reglage('volumeCrayon')) || 0));
-  return 0.05 * Math.pow(4, (v - 50) / 50);
+  return 0.25 * Math.pow(4, (v - 50) / 50);
 };
 function chargerPlume() {
   if (plumeSon || plumeChargement || !audio) return;
@@ -760,6 +763,11 @@ async function init() {
   if (!donnees.cache.meta.echelleCrayon2) {
     await donnees.changerReglage('volumeCrayon', Math.min(100, (Number(donnees.reglage('volumeCrayon')) || 0) + 50));
     await donnees.ecrireMeta('echelleCrayon2', true);
+  }
+  // Crayon remonté ×5 (24/11/2026) : le curseur revient au milieu, qui sonne à peu près comme l'ancien maximum
+  if (!donnees.cache.meta.echelleCrayon3) {
+    await donnees.changerReglage('volumeCrayon', 50);
+    await donnees.ecrireMeta('echelleCrayon3', true);
   }
   // journées récentes en mode minimum restées « en partie » : recomptées avec la règle corrigée (22/11/2026)
   for (let i = 1; i <= 14; i++) {
