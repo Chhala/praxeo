@@ -226,7 +226,7 @@ function rendreProgramme() {
 function valider(id) {
   // les bulles viennent de bouger (tâche retirée, ajoutée…) : un toucher dans les 0,8 s suivantes visait sans doute une autre bulle
   if (Date.now() - etat.dernierRendu < 800) return;
-  const t = etat.journee.find((x) => x.id === id);
+  const t = etat.journee.find((x) => x.id === id) || (etat.horsProgramme || []).find((x) => x.id === id);
   if (!t || t.faite) return;
   const li = $(`.tache[data-id="${CSS.escape(id)}"]`);
   const finir = async () => {
@@ -264,7 +264,9 @@ async function ajouterAuProgramme(p) {
 // ═══ Lignes dépliables ═════════════════════════
 // ROUTINES et JOUR montrent tout ce qui est prévu aujourd'hui, fait ou non (inventaire du jour).
 function rendreLignes() {
-  const routines = etat.journee.filter((t) => t.type === 'routine');
+  // avec celles que le programme n'affiche plus : on peut toujours les valider ici (27/11/2026)
+  etat.horsProgramme = moteur.routinesHorsProgramme(etat.journee);
+  const routines = [...etat.journee.filter((t) => t.type === 'routine'), ...etat.horsProgramme];
   const jour = etat.journee.filter((t) => t.type === 'jour');
   const lignes = [
     { nom: 'Routines', items: routines, val: `${routines.filter((t) => t.faite).length} / ${routines.length}` },
@@ -440,13 +442,44 @@ const coach = {
     this.montrerMinuteur(null);
     let i = 0;
     let bruit = 0;
+    // Un message plus long que la zone (27/11/2026) : il s'arrête au dernier mot qui tient, suivi de « … », reste le temps
+    // de le lire, puis la suite s'écrit à la place
+    this.debutPage = 0; this.iFrappe = 0;
+    let pauseJusqua = 0, suite = 0;
     this.minuteurFrappe = setInterval(() => {
+      if (pauseJusqua) {
+        if (Date.now() < pauseJusqua) return;
+        pauseJusqua = 0; this.debutPage = suite; i = suite;
+      }
       if (i >= this.texteComplet.length) { if (!this.flux) this.finFrappe(); return; }
       i++;
+      this.iFrappe = i;
       this.el.classList.remove('attente');
-      this.el.textContent = this.texteComplet.slice(0, i);
+      this.el.textContent = this.texteComplet.slice(this.debutPage, i);
+      if (this.deborde() && i < this.texteComplet.length) {
+        let c = this.texteComplet.lastIndexOf(' ', i - 1);
+        if (c <= this.debutPage) c = i - 1;
+        this.el.textContent = `${this.texteComplet.slice(this.debutPage, c)} …`;
+        while (this.deborde()) {
+          const avant = this.texteComplet.lastIndexOf(' ', c - 1);
+          if (avant <= this.debutPage) break;
+          c = avant;
+          this.el.textContent = `${this.texteComplet.slice(this.debutPage, c)} …`;
+        }
+        suite = c; while (this.texteComplet[suite] === ' ') suite++;
+        pauseJusqua = Date.now() + Math.max(2500, (c - this.debutPage) * 45);   // le temps de lire la page
+        return;
+      }
       if (++bruit % 3 === 0) cliquetis();
     }, 28);
+  },
+
+  // le texte dépasse-t-il la zone (4 lignes environ) ?
+  deborde() {
+    const zone = $('#zone');
+    const st = getComputedStyle(zone);
+    const place = zone.clientHeight - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom);
+    return this.el.scrollHeight > place + 1;
   },
 
   // un morceau de plus de la réponse de Claude
@@ -455,7 +488,7 @@ const coach = {
   // la réponse est complète : elle finit de s'écrire, puis les mots en valeur et les bulles de réponse apparaissent
   finFlux(texte, { surbrillance = [], reponses = [], minutes = null, claude = true } = {}) {
     // un autre texte que celui qui s'écrivait (erreur, autre modèle gardé en comparaison) : on le réécrit depuis le début
-    const deja = this.el.classList.contains('attente') ? '' : this.el.textContent;
+    const deja = this.el.classList.contains('attente') ? '' : this.texteComplet.slice(0, this.iFrappe || 0);
     if (!this.flux || !texte.startsWith(deja)) { this.afficher(texte, this.mode, { claude, surbrillance, reponses, minutes }); return; }
     this.texteComplet = texte;
     this.surbrillance = surbrillance;
@@ -481,7 +514,7 @@ const coach = {
     if (this.flux) return;   // tant que la réponse arrive, on ne coupe pas
     clearInterval(this.minuteurFrappe); this.minuteurFrappe = null;
     this.el.classList.remove('attente');
-    this.el.innerHTML = surligner(this.texteComplet, this.surbrillance);
+    this.el.innerHTML = surligner(this.texteComplet.slice(this.debutPage || 0), this.surbrillance);
     this.montrerReponses(this.reponses);
     if (this.minutesClaude) this.montrerMinuteur(this.minutesClaude);
     else if (this.mode === 'coach') this.montrerMinuteur(minuteurPropose());
@@ -547,6 +580,28 @@ const coach = {
       if (ouverture) { this.finFlux(locale, { claude: false }); return; }   // à l'ouverture : la consigne locale, sans bruit
       if (e.reseau && navigator.onLine === false) await coachIA.mettreEnAttente(texte);
       this.finFlux(coachIA.expliquer(e));
+    }
+  },
+
+  // Pendant que la page d'accueil attend mon toucher, la demande d'ouverture part déjà (27/11/2026 : Kairos semblait
+  // réfléchir à chaque lancement) ; au toucher, la réponse s'écrit dès qu'elle est là
+  prechargerOuverture() {
+    if (!coachIA.disponible() || navigator.onLine === false) return null;
+    const locale = consigne();
+    const p = coachIA.demander(null, { consigneLocale: locale });
+    p.catch(() => {});
+    return { locale, p };
+  },
+  async ouvrirAvec(pre) {
+    if (!pre) { this.parler(null); return; }
+    this.afficher('', 'coach', { flux: true, claude: true });
+    try {
+      const r = await pre.p;
+      if (r.principal && r.autre) { this.comparer(r); return; }
+      await this.garder(r, r.principal || r.autre);
+    } catch (e) {
+      console.warn('[Praxeo] coach', e);
+      this.finFlux(pre.locale, { claude: false });
     }
   },
 
@@ -720,9 +775,10 @@ function menuTache(id) {
 // ═══ Seuil ══════════════════════════════════════
 // Un toucher avant que Kairos parle : l'iPhone n'autorise le son qu'après un geste, et le premier message s'écrivait en silence
 // (24/11/2026). Seulement si le bruit du crayon est activé ; le micro reste demandé au moment de dicter.
+const seuilUtile = () => !!$('#seuil') && donnees.reglage('bruitFrappe') && !(audio && audio.state === 'running');
 function seuil(ensuite) {
   const el = $('#seuil');
-  if (!el || !donnees.reglage('bruitFrappe') || (audio && audio.state === 'running')) { ensuite(); return; }
+  if (!seuilUtile()) { ensuite(); return; }
   if (!el.hidden) { el._ensuite = ensuite; return; }   // déjà affiché : on garde la dernière suite
   const x = new Date();
   $('#seuil-date').textContent = x.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -782,12 +838,20 @@ async function init() {
   rendreLignes();
   coach.init();
   // à chaque ouverture : le premier texte (Kairos ou la consigne) s'écrit après le seuil, avec le son
-  seuil(() => { if (coachIA.doitParlerALouverture()) coach.parler(null); else coach.afficher(consigne()); });
+  {
+    const parle = coachIA.doitParlerALouverture();
+    const pre = parle && seuilUtile() ? coach.prechargerOuverture() : null;
+    seuil(() => { if (parle) coach.ouvrirAvec(pre); else coach.afficher(consigne()); });
+  }
   // De retour sur l'appli (iOS la garde en mémoire) : le coach reparle s'il ne l'a pas fait depuis une heure
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     rafraichir({ garderMessage: true });
-    if (etat.page === 'accueil' && coach.mode === 'coach' && !coach.flux && coachIA.doitParlerALouverture()) seuil(() => coach.parler(null));
+    if (etat.page === 'accueil' && coach.mode === 'coach' && !coach.flux && coachIA.doitParlerALouverture()) {
+      if ($('#seuil') && !$('#seuil').hidden) return;   // la page d'accueil attend déjà, avec sa demande en route
+      const pre = seuilUtile() ? coach.prechargerOuverture() : null;
+      seuil(() => coach.ouvrirAvec(pre));
+    }
   });
   // File d'attente (§9.1) : ce que j'ai dit sans réseau part dès qu'il revient
   window.addEventListener('online', async () => {

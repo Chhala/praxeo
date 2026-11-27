@@ -174,7 +174,11 @@ export function composer(maintenant = new Date()) {
     const heureNormale = litAvantDepart || litAere ? heureMatin(p) : Math.max(t, m(p.heure));
     // Passé l'heure : « trop tard » pour les routines du matin, sauf le lit et ce qui se fait partout (Lexis)
     // (le lit d'avant le départ reste possible jusqu'au départ, même quand la fenêtre se ferme plus tôt avec ma fille)
-    if (!st.faite && now > (litAvantDepart ? m(depart) : litAere ? m('12h00') : finMatin)) {
+    // un pilier reste dans la liste toute la journée, le temps de le cocher (27/11/2026 : levé à 5h30 un matin avec ma fille,
+    // « Pieds au sol » avait disparu à 7h00 ; le soir tout paraissait barré, et le lendemain Kairos parlait de joker)
+    // (le lit et ce qui se fait partout, Lexis, gardent leur chemin : ils reviennent l'après-midi)
+    const pilierACocher = p.section === 'piliers' && !estLit(p) && (p.lieu || '').toLowerCase() !== 'partout';
+    if (!st.faite && !pilierACocher && now > (litAvantDepart ? m(depart) : litAere ? m('12h00') : finMatin)) {
       if (estLit(p) || (p.lieu || '').toLowerCase() === 'partout') versSoir.push(p);
       continue;
     }
@@ -520,4 +524,19 @@ export function jokerDeLaSemaine(maintenant = new Date()) {
     if (j && j.niveau !== 'pause' && !j.minimum && j.niveau !== 2) return 'utilise';
   }
   return 'disponible';
+}
+
+// Les routines et piliers prévus aujourd'hui que le programme n'affiche plus (trop tard le matin, recouverts, mode minimum…) :
+// ils restent dans la ligne « Routines » de l'accueil, pour pouvoir toujours les valider (27/11/2026)
+export function routinesHorsProgramme(items, maintenant = new Date()) {
+  const date = d.cleDate(maintenant), dow = d.jourSemaine(maintenant);
+  if (enPause(date)) return [];
+  const affiches = new Set(items.map((x) => x.id));
+  const evs = d.cache.events.filter((e) => e.date === date && e.praxisId);
+  const a = (id, ...types) => evs.some((e) => e.praxisId === id && types.includes(e.type));
+  return d.cache.praxis
+    .filter((p) => (p.section === 'piliers' || p.section === 'routines') && !affiches.has(p.id)
+      && (!p.jours || p.jours.map(Number).includes(dow)) && !(p.creeLe && p.creeLe > date) && !a(p.id, 'retire', 'empeche'))
+    .map((p) => ({ id: p.id, libelle: p.libelle, couleur: p.couleur, type: 'routine', pilier: p.section === 'piliers', horsProgramme: true,
+      duree: p.duree || 10, faite: a(p.id, 'fait', 'minimum'), enMinimum: a(p.id, 'minimum') && !a(p.id, 'fait') }));
 }

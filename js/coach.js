@@ -221,9 +221,11 @@ export function contexte(consigneLocale, maintenant = new Date(), { ouverture = 
   const niveau = d.cache.jours.get(date)?.niveau;
   l.push(`Aujourd'hui : ${niveau === 2 ? 'l\'essentiel est fait' : niveau === 1 ? 'commencé, l\'essentiel pas encore fait' : 'rien de validé pour l\'instant'}.`);
   // Ce qui manque pour valider la journée (23/11/2026 : à « tout ce qu'il me reste », Kairos n'en donnait qu'une)
-  if (niveau !== 2 && niveau !== 'pause') {
+  // y compris une journée validée seulement grâce au joker : le pilier pas coché est peut-être fait (27/11/2026)
+  if (niveau !== 'pause') {
     const reste = moteur.essentielDuJour(maintenant).filter((t) => !t.faite);
-    l.push(`Reste pour valider la journée : ${reste.length ? reste.map((t) => `${t.libelle}${t.pilier ? ' (pilier)' : ''}`).join(', ') : 'rien'}${reste.filter((t) => t.pilier).length ? ' ; un seul pilier peut manquer (joker), pas le même deux jours de suite' : ''}.`);
+    if (niveau === 2 && reste.length) l.push(`L'essentiel est validé grâce au joker de pilier, mais ${reste.map((t) => t.libelle).join(', ')} n'est pas coché : si je demande ce qu'il me reste, nomme-le et demande-moi si je l'ai fait (bulles Oui, Non) ; à mon Oui, rien à faire de ton côté, je le coche dans la liste. Le joker n'est utilisé que s'il reste manqué.`);
+    else if (niveau !== 2) l.push(`Reste pour valider la journée : ${reste.length ? reste.map((t) => `${t.libelle}${t.pilier ? ' (pilier)' : ''}`).join(', ') : 'rien'}${reste.filter((t) => t.pilier).length ? ' ; un seul pilier peut manquer (joker), pas le même deux jours de suite' : ''}.`);
   }
   if (consigneLocale) l.push(`Consigne locale : « ${consigneLocale} »`);
   l.push(`Maximes : ${d.reglage('maximes') ? 'activées' : 'désactivées'}.`);
